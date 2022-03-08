@@ -85,17 +85,20 @@ contract Pool {
             and keep the pools at balance.        
          */
         uint256 price = priceOracle.getLatestPrice();
+        uint256 padding = 100 * 100;
         bool isPriceIncrease = lastPrice < price;
-        if (lastPrice < price) {
-            uint256 delta = (price*100-lastPrice*100)/lastPrice*100;
+        
+        if (isPriceIncrease) {
+            uint256 delta = ((price * 100 - lastPrice * 100) / lastPrice) * 100;
             for (uint256 i = 0; i < shortPositons.length; i++) {
                 console.log(delta);
                 shortPositons[i].chipQuantity *= delta;
-                shortPositons[i].chipQuantity /= 10000;
+                shortPositons[i].chipQuantity /= padding;
             }
+
             for (uint256 i = 0; i < longPositions.length; i++) {
-                longPositions[i].chipQuantity *= delta + (100*100);
-                longPositions[i].chipQuantity /= 10000;
+                longPositions[i].chipQuantity *= delta + padding;
+                longPositions[i].chipQuantity /= padding;
             }
         }
 
