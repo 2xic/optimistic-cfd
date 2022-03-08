@@ -46,5 +46,6 @@ export async function deployContract() {
     shortCfdTopken,
     PoolContract,
     pool,
+    priceConsumer,
   };
 }

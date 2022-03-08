@@ -1,5 +1,4 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
 import { decodeBoolAbi } from "./helpers/decodeAbi";
 import { deployContract } from "./helpers/deployContract";
 import { getAddressSigner } from "./helpers/getAddressSigner";
@@ -53,20 +52,20 @@ describe("Chip", function () {
 
     expect(decodeBoolAbi({ data })).to.equal(true);
 
-    await pool.connect(coreContract.signer).init(1, 0);
+    await pool.connect(coreContract.signer).init(75, 0);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
       coreContractSignerAddress
     );
-    expect(updatedCoreContractBalance).to.equal(99);
+    expect(updatedCoreContractBalance).to.equal(25);
 
     const longCfdTOkenBalance = await longCfdTOken.balanceOf(
       coreContractSignerAddress
     );
-    expect(longCfdTOkenBalance).to.equal(1);
+    expect(longCfdTOkenBalance).to.equal(15);
 
     const shortCfdTokenBalance = await shortCfdTopken.balanceOf(pool.address);
-    expect(shortCfdTokenBalance).to.equal(1);
+    expect(shortCfdTokenBalance).to.equal(15);
   });
 
   it("Should be possible to exchange $c for $cfdshort", async () => {
@@ -86,20 +85,20 @@ describe("Chip", function () {
 
     expect(decodeBoolAbi({ data })).to.equal(true);
 
-    await pool.connect(coreContract.signer).init(1, 1);
+    await pool.connect(coreContract.signer).init(75, 1);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
       coreContractSignerAddress
     );
-    expect(updatedCoreContractBalance).to.equal(99);
+    expect(updatedCoreContractBalance).to.equal(25);
 
     const longCfdTOkenBalance = await longCfdTOken.balanceOf(pool.address);
-    expect(longCfdTOkenBalance).to.equal(1);
+    expect(longCfdTOkenBalance).to.equal(15);
 
     const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
       coreContractSignerAddress
     );
-    expect(shortCfdTokenBalance).to.equal(1);
+    expect(shortCfdTokenBalance).to.equal(15);
   });
 
   it.skip("should take an 0.3% fee when entering an synehtetic position", () => {

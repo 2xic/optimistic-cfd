@@ -18,6 +18,9 @@ contract Pool {
     EthLongCfd longCfd;
     EthShortCfd shortCfd;
 
+    uint256 lastPrice;
+    uint16 expontent;
+
     constructor(
         address priceFeed,
         address _chipToken,
@@ -28,6 +31,7 @@ contract Pool {
         longCfd = EthLongCfd(_longTCfd);
         shortCfd = EthShortCfd(_shortCfd);
         chipToken = IERC20(_chipToken);
+        expontent = 1000;
     }
 
     function init(uint256 amount, PositionType position)
@@ -43,46 +47,93 @@ contract Pool {
          */
 
         uint256 price = priceOracle.getLatestPrice();
-        console.log(position == PositionType.LONG);
+        uint256 leftover = amount % price;
+        uint256 deposited = (amount - leftover);
+        lastPrice = price;
 
         if (position == PositionType.LONG) {
-            require(chipToken.transferFrom(msg.sender, address(this), amount));
-            longCfd.exchange(amount, msg.sender);
+            require(
+                chipToken.transferFrom(msg.sender, address(this), deposited)
+            );
+            _createPosition(PositionType.LONG, price, deposited, msg.sender);
+            _createPosition(
+                PositionType.SHORT,
+                price,
+                deposited,
+                address(this)
+            );
+        } else if (position == PositionType.SHORT) {
+            require(
+                chipToken.transferFrom(msg.sender, address(this), deposited)
+            );
+            _createPosition(PositionType.SHORT, price, deposited, msg.sender);
+            _createPosition(PositionType.LONG, price, deposited, address(this));
+        }
+        return true;
+    }
+
+    function update() public payable returns (bool) {
+        /**
+            1. rebalance
+            2. mint tokens depending on the protcol position
+         */
+    }
+
+    function rebalancePools() public payable returns (bool) {
+        /*
+            The update function will should just rebalance the $c between the pools,
+            and keep the pools at balance.        
+         */
+        uint256 price = priceOracle.getLatestPrice();
+        bool isPriceIncrease = lastPrice < price;
+        if (lastPrice < price) {
+            uint256 delta = (price*100-lastPrice*100)/lastPrice*100;
+            for (uint256 i = 0; i < shortPositons.length; i++) {
+                console.log(delta);
+                shortPositons[i].chipQuantity *= delta;
+                shortPositons[i].chipQuantity /= 10000;
+            }
+            for (uint256 i = 0; i < longPositions.length; i++) {
+                longPositions[i].chipQuantity *= delta + (100*100);
+                longPositions[i].chipQuantity /= 10000;
+            }
+        }
+
+        lastPrice = price;
+    }
+
+    function _createPosition(
+        PositionType position,
+        uint256 price,
+        uint256 deposited,
+        address owner
+    ) private returns (uint256) {
+        require(
+            deposited >= price,
+            "Deposited deposited has to be greater than the price"
+        );
+        uint256 mintedTokens = deposited / price;
+
+        if (position == PositionType.LONG) {
+            longCfd.exchange(mintedTokens, owner);
             longPositions.push(
                 Positon({
                     entryPrice: price,
-                    chipQuantity: amount,
-                    owner: msg.sender
-                })
-            );
-            shortCfd.exchange(amount, address(this));
-            shortPositons.push(
-                Positon({
-                    entryPrice: price,
-                    chipQuantity: amount,
-                    owner: address(this)
+                    chipQuantity: deposited * expontent,
+                    owner: owner
                 })
             );
         } else if (position == PositionType.SHORT) {
-            require(chipToken.transferFrom(msg.sender, address(this), amount));
-            shortCfd.exchange(amount, msg.sender);
+            shortCfd.exchange(mintedTokens, owner);
             shortPositons.push(
                 Positon({
                     entryPrice: price,
-                    chipQuantity: amount,
-                    owner: msg.sender
-                })
-            );
-            longCfd.exchange(amount, address(this));
-            longPositions.push(
-                Positon({
-                    entryPrice: price,
-                    chipQuantity: amount,
-                    owner: address(this)
+                    chipQuantity: deposited * expontent,
+                    owner: owner
                 })
             );
         }
-        return true;
+        return 0;
     }
 }
 
