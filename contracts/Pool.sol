@@ -49,13 +49,39 @@ contract Pool {
             require(chipToken.transferFrom(msg.sender, address(this), amount));
             longCfd.exchange(amount, msg.sender);
             longPositions.push(
-                Positon({entryPrice: price, chipQuantity: amount})
+                Positon({
+                    entryPrice: price,
+                    chipQuantity: amount,
+                    owner: msg.sender
+                })
+            );
+            shortCfd.exchange(amount, address(this));
+            shortPositons.push(
+                Positon({
+                    entryPrice: price,
+                    chipQuantity: amount,
+                    owner: address(this)
+                })
             );
         } else if (position == PositionType.SHORT) {
-            // mint short chip exchange
+            require(chipToken.transferFrom(msg.sender, address(this), amount));
+            shortCfd.exchange(amount, msg.sender);
+            shortPositons.push(
+                Positon({
+                    entryPrice: price,
+                    chipQuantity: amount,
+                    owner: msg.sender
+                })
+            );
+            longCfd.exchange(amount, address(this));
+            longPositions.push(
+                Positon({
+                    entryPrice: price,
+                    chipQuantity: amount,
+                    owner: address(this)
+                })
+            );
         }
-        // Protcol take the other side of the order.
-
         return true;
     }
 }
@@ -63,6 +89,7 @@ contract Pool {
 struct Positon {
     uint256 entryPrice;
     uint256 chipQuantity;
+    address owner;
 }
 
 enum PositionType {

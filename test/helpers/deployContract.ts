@@ -18,8 +18,8 @@ export async function deployContract() {
   await longCfdTOken.deployed();
 
   const ShortCfdEthContract = await ethers.getContractFactory("EthShortCfd");
-  const shortCfdTOken = await ShortCfdEthContract.deploy(_owner.address);
-  await shortCfdTOken.deployed();
+  const shortCfdTopken = await ShortCfdEthContract.deploy(_owner.address);
+  await shortCfdTopken.deployed();
 
   const PriceConsumerV3Contract = await ethers.getContractFactory(
     "MockPriceOracle"
@@ -32,7 +32,7 @@ export async function deployContract() {
     priceConsumer.address,
     chipToken.address,
     longCfdTOken.address,
-    shortCfdTOken.address
+    shortCfdTopken.address
   );
   await pool.deployed();
 
@@ -43,6 +43,7 @@ export async function deployContract() {
     coreContract,
     randomAddress,
     longCfdTOken,
+    shortCfdTopken,
     PoolContract,
     pool,
   };

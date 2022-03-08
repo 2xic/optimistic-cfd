@@ -1,6 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { decodeBoolAbi } from "./helpers/decodeAbi";
 import { deployContract } from "./helpers/deployContract";
+import { getAddressSigner } from "./helpers/getAddressSigner";
 
 describe("Chip", function () {
   it("Should be possible to mint new tokens", async function () {
@@ -35,11 +37,13 @@ describe("Chip", function () {
   });
 
   it("Should be possible to exchange $c for $cfdlong", async () => {
-    const { chipToken, coreContract, pool, longCfdTOken } = await deployContract();
+    const { chipToken, coreContract, pool, longCfdTOken, shortCfdTopken } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
     await chipToken.mint(100);
 
     const coreContractBalance = await chipToken.balanceOf(
-      await coreContract.signer.getAddress()
+      coreContractSignerAddress
     );
     expect(coreContractBalance).to.equal(100);
 
@@ -47,27 +51,55 @@ describe("Chip", function () {
       .connect(coreContract.signer)
       .approve(pool.address, 100);
 
-    expect(
-      ethers.utils.defaultAbiCoder
-        .decode(["bool"], ethers.utils.hexDataSlice(data, 4))
-        .toString()
-    ).to.equal("true");
+    expect(decodeBoolAbi({ data })).to.equal(true);
 
     await pool.connect(coreContract.signer).init(1, 0);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
-      await coreContract.signer.getAddress()
+      coreContractSignerAddress
     );
     expect(updatedCoreContractBalance).to.equal(99);
 
     const longCfdTOkenBalance = await longCfdTOken.balanceOf(
-      await coreContract.signer.getAddress()
+      coreContractSignerAddress
     );
     expect(longCfdTOkenBalance).to.equal(1);
+
+    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(pool.address);
+    expect(shortCfdTokenBalance).to.equal(1);
   });
 
-  it.skip("Should be possible to exchange $c for $cfdshort", () => {
-    expect.fail("Not implemented");
+  it("Should be possible to exchange $c for $cfdshort", async () => {
+    const { chipToken, coreContract, pool, longCfdTOken, shortCfdTopken } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await chipToken.mint(100);
+
+    const coreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(coreContractBalance).to.equal(100);
+
+    const { data } = await chipToken
+      .connect(coreContract.signer)
+      .approve(pool.address, 100);
+
+    expect(decodeBoolAbi({ data })).to.equal(true);
+
+    await pool.connect(coreContract.signer).init(1, 1);
+
+    const updatedCoreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(updatedCoreContractBalance).to.equal(99);
+
+    const longCfdTOkenBalance = await longCfdTOken.balanceOf(pool.address);
+    expect(longCfdTOkenBalance).to.equal(1);
+
+    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(shortCfdTokenBalance).to.equal(1);
   });
 
   it.skip("should take an 0.3% fee when entering an synehtetic position", () => {
