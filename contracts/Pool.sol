@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Pool {
     Positon[] public longPositions;
     Positon[] public shortPositons;
+    PositionType protcolPosition;
 
     IPriceOracle priceOracle;
     IERC20 public chipToken;
@@ -62,24 +63,34 @@ contract Pool {
                 deposited,
                 address(this)
             );
+            protcolPosition = PositionType.SHORT;
         } else if (position == PositionType.SHORT) {
             require(
                 chipToken.transferFrom(msg.sender, address(this), deposited)
             );
             _createPosition(PositionType.SHORT, price, deposited, msg.sender);
             _createPosition(PositionType.LONG, price, deposited, address(this));
+            protcolPosition = PositionType.LONG;
         }
         return true;
     }
 
     function update() public payable returns (bool) {
         /**
-            1. rebalance
-            2. mint tokens depending on the protcol position
+            1. Move the chips between pools
+            2. Balance out the pools.
          */
+        Rebalance memory rebalance = rebalancePools();
+        bool priceMovedAgainstProtcol = (protcolPosition == PositionType.LONG &&
+            rebalance.direction == PriceMovment.DOWN);
+
+        if (priceMovedAgainstProtcol) {
+            // protcol has to "mint" new tokens now.
+            // currently just "fake" mints, but this will be changed as new tests are implemented
+        }
     }
 
-    function rebalancePools() public payable returns (bool) {
+    function rebalancePools() public payable returns (Rebalance memory) {
         /*
             The update function will should just rebalance the $c between the pools,
             and keep the pools at balance.        
@@ -87,11 +98,15 @@ contract Pool {
         uint256 price = priceOracle.getLatestPrice();
         uint256 padding = 100 * 100;
         bool isPriceIncrease = lastPrice < price;
-        
+        bool isPriceDecrease = lastPrice > price;
+
+        uint256 minted = 0;
+
         if (isPriceIncrease) {
             uint256 delta = ((price * 100 - lastPrice * 100) / lastPrice) * 100;
             for (uint256 i = 0; i < shortPositons.length; i++) {
-                console.log(delta);
+                minted += (shortPositons[i].chipQuantity * delta);
+
                 shortPositons[i].chipQuantity *= delta;
                 shortPositons[i].chipQuantity /= padding;
             }
@@ -100,9 +115,28 @@ contract Pool {
                 longPositions[i].chipQuantity *= delta + padding;
                 longPositions[i].chipQuantity /= padding;
             }
+        } else if (isPriceDecrease) {
+            uint256 delta = ((lastPrice * 100 - price * 100) / lastPrice) * 100;
+
+            for (uint256 i = 0; i < longPositions.length; i++) {
+                longPositions[i].chipQuantity *= delta;
+                longPositions[i].chipQuantity /= padding;
+            }
+
+            for (uint256 i = 0; i < shortPositons.length; i++) {
+                shortPositons[i].chipQuantity *= delta + padding;
+                shortPositons[i].chipQuantity /= padding;
+            }
         }
 
         lastPrice = price;
+
+        if (isPriceIncrease) {
+            return Rebalance({direction: PriceMovment.UP, minted: minted});
+        } else if (isPriceDecrease) {
+            return Rebalance({direction: PriceMovment.DOWN, minted: minted});
+        }
+        return Rebalance({direction: PriceMovment.STABLE, minted: minted});
     }
 
     function _createPosition(
@@ -138,6 +172,14 @@ contract Pool {
         }
         return 0;
     }
+
+    function getShorts() public view returns (Positon[] memory) {
+        return shortPositons;
+    }
+
+    function getLongs() public view returns (Positon[] memory) {
+        return longPositions;
+    }
 }
 
 struct Positon {
@@ -146,7 +188,18 @@ struct Positon {
     address owner;
 }
 
+struct Rebalance {
+    PriceMovment direction;
+    uint256 minted;
+}
+
 enum PositionType {
     LONG,
     SHORT
+}
+
+enum PriceMovment {
+    DOWN,
+    UP,
+    STABLE
 }
