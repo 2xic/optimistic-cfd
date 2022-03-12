@@ -81,13 +81,23 @@ contract Pool {
             2. Balance out the pools.
          */
         Rebalance memory rebalance = rebalancePools();
-        bool priceMovedAgainstProtcol = (protcolPosition == PositionType.LONG &&
+        bool priceMovedAgainstProtcolLong = (protcolPosition == PositionType.LONG &&
             rebalance.direction == PriceMovment.DOWN);
+        bool priceMovedAgainstProtcoShort = (protcolPosition == PositionType.SHORT &&
+            rebalance.direction == PriceMovment.UP);
 
-        if (priceMovedAgainstProtcol) {
+        if (priceMovedAgainstProtcolLong) {
             // protcol has to "mint" new tokens now.
             // currently just "fake" mints, but this will be changed as new tests are implemented
             longPositions.push(
+                Positon({
+                    entryPrice: rebalance.price,
+                    chipQuantity: rebalance.minted,
+                    owner: address(this)
+                })
+            );
+        } else if (priceMovedAgainstProtcoShort) {
+            shortPositons.push(
                 Positon({
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
@@ -111,17 +121,23 @@ contract Pool {
 
         if (isPriceIncrease) {
             uint256 delta = ((price * 100 - lastPrice * 100) / lastPrice) * 100;
-            for (uint256 i = 0; i < shortPositons.length; i++) {
-                minted += (shortPositons[i].chipQuantity * delta);
-
-                shortPositons[i].chipQuantity *= delta;
-                shortPositons[i].chipQuantity /= padding;
-            }
+            uint256 poolBalance = 0;
 
             for (uint256 i = 0; i < longPositions.length; i++) {
                 longPositions[i].chipQuantity *= delta + padding;
                 longPositions[i].chipQuantity /= padding;
+
+                poolBalance += longPositions[i].chipQuantity;
             }
+
+            for (uint256 i = 0; i < shortPositons.length; i++) {
+                shortPositons[i].chipQuantity *= delta;
+                shortPositons[i].chipQuantity /= padding;
+
+                poolBalance -= shortPositons[i].chipQuantity;
+            }
+
+            minted = poolBalance;
         } else if (isPriceDecrease) {
             uint256 delta = ((lastPrice * 100 - price * 100) / lastPrice) * 100;
             uint256 poolBalance = 0;
