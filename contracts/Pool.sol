@@ -81,9 +81,11 @@ contract Pool {
             2. Balance out the pools.
          */
         Rebalance memory rebalance = rebalancePools();
-        bool priceMovedAgainstProtcolLong = (protcolPosition == PositionType.LONG &&
+        bool priceMovedAgainstProtcolLong = (protcolPosition ==
+            PositionType.LONG &&
             rebalance.direction == PriceMovment.DOWN);
-        bool priceMovedAgainstProtcoShort = (protcolPosition == PositionType.SHORT &&
+        bool priceMovedAgainstProtcoShort = (protcolPosition ==
+            PositionType.SHORT &&
             rebalance.direction == PriceMovment.UP);
 
         if (priceMovedAgainstProtcolLong) {
@@ -113,7 +115,6 @@ contract Pool {
             and keep the pools at balance.        
          */
         uint256 price = priceOracle.getLatestPrice();
-        uint256 padding = 100 * 100;
         bool isPriceIncrease = lastPrice < price;
         bool isPriceDecrease = lastPrice > price;
 
@@ -121,42 +122,12 @@ contract Pool {
 
         if (isPriceIncrease) {
             uint256 delta = ((price * 100 - lastPrice * 100) / lastPrice) * 100;
-            uint256 poolBalance = 0;
 
-            for (uint256 i = 0; i < longPositions.length; i++) {
-                longPositions[i].chipQuantity *= delta + padding;
-                longPositions[i].chipQuantity /= padding;
-
-                poolBalance += longPositions[i].chipQuantity;
-            }
-
-            for (uint256 i = 0; i < shortPositons.length; i++) {
-                shortPositons[i].chipQuantity *= delta;
-                shortPositons[i].chipQuantity /= padding;
-
-                poolBalance -= shortPositons[i].chipQuantity;
-            }
-
-            minted = poolBalance;
+            minted = _position_chip_adjustments(delta, PriceMovment.UP);
         } else if (isPriceDecrease) {
             uint256 delta = ((lastPrice * 100 - price * 100) / lastPrice) * 100;
-            uint256 poolBalance = 0;
 
-            for (uint256 i = 0; i < shortPositons.length; i++) {
-                shortPositons[i].chipQuantity *= delta + padding;
-                shortPositons[i].chipQuantity /= padding;
-
-                poolBalance += shortPositons[i].chipQuantity;
-            }
-
-            for (uint256 i = 0; i < longPositions.length; i++) {
-                longPositions[i].chipQuantity *= delta;
-                longPositions[i].chipQuantity /= padding;
-
-                poolBalance -= longPositions[i].chipQuantity;
-            }
-
-            minted = poolBalance;
+            minted = _position_chip_adjustments(delta, PriceMovment.DOWN);
         }
 
         lastPrice = price;
@@ -182,6 +153,43 @@ contract Pool {
                 minted: minted,
                 price: price
             });
+    }
+
+    function _position_chip_adjustments(uint256 delta, PriceMovment direction)
+        private
+        returns (uint256)
+    {
+        uint256 padding = 100 * 100;
+
+        for (uint256 i = 0; i < shortPositons.length; i++) {
+            shortPositons[i].chipQuantity *= (
+                direction == PriceMovment.DOWN ? delta + padding : delta
+            );
+            shortPositons[i].chipQuantity /= padding;
+        }
+
+        for (uint256 i = 0; i < longPositions.length; i++) {
+            longPositions[i].chipQuantity *= (
+                direction == PriceMovment.UP ? delta + padding : delta
+            );
+            longPositions[i].chipQuantity /= padding;
+        }
+
+        uint256 poolBalance = 0;
+        Positon[] storage bigPool = (
+            direction == PriceMovment.DOWN ? shortPositons : longPositions
+        );
+        Positon[] storage smallPool = (
+            direction == PriceMovment.DOWN ? longPositions : shortPositons
+        );
+        for (uint256 i = 0; i < bigPool.length; i++) {
+            poolBalance += bigPool[i].chipQuantity;
+        }
+        for (uint256 i = 0; i < smallPool.length; i++) {
+            poolBalance -= smallPool[i].chipQuantity;
+        }
+
+        return poolBalance;
     }
 
     function _createPosition(
