@@ -87,6 +87,13 @@ contract Pool {
         if (priceMovedAgainstProtcol) {
             // protcol has to "mint" new tokens now.
             // currently just "fake" mints, but this will be changed as new tests are implemented
+            longPositions.push(
+                Positon({
+                    entryPrice: rebalance.price,
+                    chipQuantity: rebalance.minted,
+                    owner: address(this)
+                })
+            );
         }
     }
 
@@ -117,26 +124,48 @@ contract Pool {
             }
         } else if (isPriceDecrease) {
             uint256 delta = ((lastPrice * 100 - price * 100) / lastPrice) * 100;
-
-            for (uint256 i = 0; i < longPositions.length; i++) {
-                longPositions[i].chipQuantity *= delta;
-                longPositions[i].chipQuantity /= padding;
-            }
+            uint256 poolBalance = 0;
 
             for (uint256 i = 0; i < shortPositons.length; i++) {
                 shortPositons[i].chipQuantity *= delta + padding;
                 shortPositons[i].chipQuantity /= padding;
+
+                poolBalance += shortPositons[i].chipQuantity;
             }
+
+            for (uint256 i = 0; i < longPositions.length; i++) {
+                longPositions[i].chipQuantity *= delta;
+                longPositions[i].chipQuantity /= padding;
+
+                poolBalance -= longPositions[i].chipQuantity;
+            }
+
+            minted = poolBalance;
         }
 
         lastPrice = price;
 
         if (isPriceIncrease) {
-            return Rebalance({direction: PriceMovment.UP, minted: minted});
+            return
+                Rebalance({
+                    direction: PriceMovment.UP,
+                    minted: minted,
+                    price: price
+                });
         } else if (isPriceDecrease) {
-            return Rebalance({direction: PriceMovment.DOWN, minted: minted});
+            return
+                Rebalance({
+                    direction: PriceMovment.DOWN,
+                    minted: minted,
+                    price: price
+                });
         }
-        return Rebalance({direction: PriceMovment.STABLE, minted: minted});
+        return
+            Rebalance({
+                direction: PriceMovment.STABLE,
+                minted: minted,
+                price: price
+            });
     }
 
     function _createPosition(
@@ -145,10 +174,12 @@ contract Pool {
         uint256 deposited,
         address owner
     ) private returns (uint256) {
+        /*
         require(
             deposited >= price,
             "Deposited deposited has to be greater than the price"
         );
+        */
         uint256 mintedTokens = deposited / price;
 
         if (position == PositionType.LONG) {
@@ -191,6 +222,7 @@ struct Positon {
 struct Rebalance {
     PriceMovment direction;
     uint256 minted;
+    uint256 price;
 }
 
 enum PositionType {

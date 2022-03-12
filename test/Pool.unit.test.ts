@@ -3,6 +3,7 @@ import { decodeBoolAbi } from "./helpers/decodeAbi";
 import { deployContract } from "./helpers/deployContract";
 import { getAddressSigner } from "./helpers/getAddressSigner";
 import { sumChipQuantity } from "./helpers/sumPositions";
+import { Position } from "./types/Position";
 
 describe("Pool", () => {
   it("should move $c from the short pool to the long pool on price increase", async () => {
@@ -28,7 +29,7 @@ describe("Pool", () => {
     expect(decodeBoolAbi({ data })).to.equal(true);
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
-    await pool.connect(coreContract.signer).init(50, 1);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
       coreContractSignerAddress
@@ -78,7 +79,7 @@ describe("Pool", () => {
     expect(decodeBoolAbi({ data })).to.equal(true);
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
-    await pool.connect(coreContract.signer).init(50, 1);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
       coreContractSignerAddress
@@ -102,6 +103,56 @@ describe("Pool", () => {
     await pool.connect(coreContract.signer).rebalancePools();
 
     expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
+  });
+
+  it("should correctly adjust the pools after a price move against the protcol position", async () => {
+    const {
+      chipToken,
+      coreContract,
+      pool,
+      longCfdTOken,
+      shortCfdTopken,
+      priceConsumer,
+    } = await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await chipToken.mint(100);
+
+    const coreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(coreContractBalance).to.equal(100);
+
+    const { data } = await chipToken
+      .connect(coreContract.signer)
+      .approve(pool.address, 100);
+    expect(decodeBoolAbi({ data })).to.equal(true);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+
+    const updatedCoreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(updatedCoreContractBalance).to.equal(50);
+
+    const longCfdTokenBalance = await longCfdTOken.balanceOf(pool.address);
+    expect(longCfdTokenBalance).to.equal(5);
+
+    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(shortCfdTokenBalance).to.equal(5);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    // 50% price decrease
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
     expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
