@@ -149,30 +149,42 @@ describe("Pool", () => {
     }
   );
 
-  it.skip("should keep the pools balanced after readjustment after a price decrease", () => {
-    /**
-     * One person enters trade
-     * Protcol steps into other side of trade
+  it("should keep the pools balanced after priced move with the protocl", async () => {
+    const userPosition = Position.LONG;
+    const { chipToken, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await chipToken.mint(100);
 
-    *  Price moves in faveour of other person. OK
-     *  -> Protcol can just mints more on it's side
-     * Price moves in ffavour of the the protcol
-     *  -> Money should be moved from the other user and to the protcol
-     *  -> then we need to mint on the side of the other person
-    ->  
+    const coreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(coreContractBalance).to.equal(100);
 
-     But the protcol should only be on one side of the trade ? 
-     
-     norswap wrote : 
-      Let's imagine the price goes up to 120$ and that short pool is 220 $C. 
-      Then the balance will go to 200-200. Not 240-240! 
-      
-      **The protocol never chips in on both side, so because the short pool was reduced to 200 $C**
-      
-      , the protocol must remove 40 $C from the long side (which is now 220 + 20 profit). 
-      If we ignore profit redistribution, this should 0.33333... $cfdETH == 40 $C at a price of 120 $C.
-     */
-    expect.fail("not implemented");
+    const { data } = await chipToken
+      .connect(coreContract.signer)
+      .approve(pool.address, 100);
+    expect(decodeBoolAbi({ data })).to.equal(true);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, userPosition);
+
+    const updatedCoreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(updatedCoreContractBalance).to.equal(50);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    // Protcol will be short, and will therefore "burn" the outstanding
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
   });
 
   it.skip("should keep the pools balanced after readjustment after a price increase", () => {

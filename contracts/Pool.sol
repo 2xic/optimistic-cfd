@@ -132,21 +132,17 @@ contract Pool {
 
         lastPrice = price;
 
-        if (isPriceIncrease) {
+        if (isPriceIncrease || isPriceDecrease) {
             return
                 Rebalance({
-                    direction: PriceMovment.UP,
-                    minted: minted,
-                    price: price
-                });
-        } else if (isPriceDecrease) {
-            return
-                Rebalance({
-                    direction: PriceMovment.DOWN,
+                    direction: isPriceIncrease
+                        ? PriceMovment.UP
+                        : PriceMovment.DOWN,
                     minted: minted,
                     price: price
                 });
         }
+
         return
             Rebalance({
                 direction: PriceMovment.STABLE,
@@ -160,12 +156,18 @@ contract Pool {
         returns (uint256)
     {
         uint256 padding = 100 * 100;
+        bool isProtcolWinning = protcolPosition == PositionType.SHORT && direction == PriceMovment.DOWN; 
 
         for (uint256 i = 0; i < shortPositons.length; i++) {
-            shortPositons[i].chipQuantity *= (
-                direction == PriceMovment.DOWN ? delta + padding : delta
-            );
-            shortPositons[i].chipQuantity /= padding;
+            if (!isProtcolWinning) {
+                shortPositons[i].chipQuantity *= (
+                    direction == PriceMovment.DOWN ? delta + padding : delta
+                );
+                shortPositons[i].chipQuantity /= padding;
+            } else if (shortPositons[i].owner == address(this)) {
+                shortPositons[i].chipQuantity *= delta;
+                shortPositons[i].chipQuantity /= padding;
+            }
         }
 
         for (uint256 i = 0; i < longPositions.length; i++) {
