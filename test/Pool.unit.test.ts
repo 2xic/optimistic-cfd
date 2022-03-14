@@ -107,6 +107,30 @@ describe("Pool", () => {
     expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
+  it("should not be possible to call the init function multiple times", async () => {
+    const { chipToken, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await chipToken.mint(100);
+
+    const coreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(coreContractBalance).to.equal(100);
+
+    const { data } = await chipToken
+      .connect(coreContract.signer)
+      .approve(pool.address, 100);
+    expect(decodeBoolAbi({ data })).to.equal(true);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+
+    await expect(
+      pool.connect(coreContract.signer).init(50, Position.SHORT)
+    ).to.be.revertedWith("Init should only be called once");
+  });
+
   forEach([[Position.SHORT], [Position.LONG]]).it(
     "should correctly adjust the pools after a price move against the protcol position",
     async (userPosition) => {
@@ -187,12 +211,33 @@ describe("Pool", () => {
     expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
   });
 
-  it.skip("should keep the pools balanced after readjustment after a price increase", () => {
-    expect.fail("not implemented");
-  });
+  it("should burn minted $c if fresh users join the pool", async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await chipToken.mint(100);
 
-  it.skip("should burn minted $c if fresh users join the pool", () => {
-    expect.fail("not implemented");
+    const coreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(coreContractBalance).to.equal(100);
+
+    const { data } = await chipToken
+      .connect(coreContract.signer)
+      .approve(pool.address, 100);
+    expect(decodeBoolAbi({ data })).to.equal(true);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.LONG);
+    await pool.connect(randomAddress).enter(50, Position.SHORT);
+
+    const updatedCoreContractBalance = await chipToken.balanceOf(
+      coreContractSignerAddress
+    );
+    expect(updatedCoreContractBalance).to.equal(50);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
   });
 
   it.skip("protcol should only burn the principal, and send the rest to the treasury", () => {

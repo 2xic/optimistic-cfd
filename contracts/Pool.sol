@@ -47,6 +47,8 @@ contract Pool {
             The protcol will take the other side of the trade.
          */
 
+        require(lastPrice == 0, "Init should only be called once");
+
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
         uint256 deposited = (amount - leftover);
@@ -72,6 +74,32 @@ contract Pool {
             _createPosition(PositionType.LONG, price, deposited, address(this));
             protcolPosition = PositionType.LONG;
         }
+        return true;
+    }
+
+    function enter(uint256 amount, PositionType position)
+        public
+        payable
+        returns (bool)
+    {
+        /*
+            1,. 
+         */
+        uint256 price = priceOracle.getLatestPrice();
+        uint256 leftover = amount % price;
+        uint256 deposited = (amount - leftover);
+
+        bool isOverwritingProtcol = position == protcolPosition;
+
+        if (isOverwritingProtcol) {
+            _createPosition(position, price, deposited, msg.sender);
+            _redjuceProtcolPosition(deposited, price);
+        } else {
+            /*
+                Protcol needs to mint more on it's side of the trade.
+            */
+        }
+
         return true;
     }
 
@@ -151,12 +179,15 @@ contract Pool {
             });
     }
 
+    function _enter_position(uint256 amount) private returns (uint256) {}
+
     function _position_chip_adjustments(uint256 delta, PriceMovment direction)
         private
         returns (uint256)
     {
         uint256 padding = 100 * 100;
-        bool isProtcolWinning = protcolPosition == PositionType.SHORT && direction == PriceMovment.DOWN; 
+        bool isProtcolWinning = protcolPosition == PositionType.SHORT &&
+            direction == PriceMovment.DOWN;
 
         for (uint256 i = 0; i < shortPositons.length; i++) {
             if (!isProtcolWinning) {
@@ -230,6 +261,24 @@ contract Pool {
         return 0;
     }
 
+    function _redjuceProtcolPosition(uint256 amount, uint256 price)
+        private
+        returns (bool)
+    {
+        Positon[] storage positions = (
+            protcolPosition == PositionType.LONG ? longPositions : shortPositons
+        );
+
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (positions[i].owner == address(this)) {
+                // Todo : Should withdrawl to tressury if profits, etc.
+                // Todo : if the deposited amount is greater than the exposoure of the protcol then the protcol has to create a position on the other side of the trade.
+                positions[i].chipQuantity -= amount * expontent;
+            }
+        }
+        return true;
+    }
+
     function getShorts() public view returns (Positon[] memory) {
         return shortPositons;
     }
@@ -253,7 +302,8 @@ struct Rebalance {
 
 enum PositionType {
     LONG,
-    SHORT
+    SHORT,
+    BYSTANDARDER
 }
 
 enum PriceMovment {
