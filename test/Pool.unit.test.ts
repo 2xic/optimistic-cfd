@@ -238,6 +238,9 @@ describe("Pool", () => {
 
     expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
     expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    expect((await pool.getShorts()).length).to.equal(1);
+    expect((await pool.getLongs()).length).to.equal(1);
   });
 
   it.skip("protcol should only burn the principal, and send the rest to the treasury", () => {

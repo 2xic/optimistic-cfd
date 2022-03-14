@@ -8,10 +8,12 @@ import {Chip} from "./Chip.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SharedStructs} from "./structs/Postion.sol";
+import {PositionHelper} from "./PositionHelper.sol";
 
 contract Pool {
-    Positon[] public longPositions;
-    Positon[] public shortPositons;
+    SharedStructs.Positon[] public longPositions;
+    SharedStructs.Positon[] public shortPositons;
     PositionType protcolPosition;
 
     IPriceOracle priceOracle;
@@ -120,7 +122,7 @@ contract Pool {
             // protcol has to "mint" new tokens now.
             // currently just "fake" mints, but this will be changed as new tests are implemented
             longPositions.push(
-                Positon({
+                SharedStructs.Positon({
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
                     owner: address(this)
@@ -128,7 +130,7 @@ contract Pool {
             );
         } else if (priceMovedAgainstProtcoShort) {
             shortPositons.push(
-                Positon({
+                SharedStructs.Positon({
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
                     owner: address(this)
@@ -209,10 +211,10 @@ contract Pool {
         }
 
         uint256 poolBalance = 0;
-        Positon[] storage bigPool = (
+        SharedStructs.Positon[] storage bigPool = (
             direction == PriceMovment.DOWN ? shortPositons : longPositions
         );
-        Positon[] storage smallPool = (
+        SharedStructs.Positon[] storage smallPool = (
             direction == PriceMovment.DOWN ? longPositions : shortPositons
         );
         for (uint256 i = 0; i < bigPool.length; i++) {
@@ -242,7 +244,7 @@ contract Pool {
         if (position == PositionType.LONG) {
             longCfd.exchange(mintedTokens, owner);
             longPositions.push(
-                Positon({
+                SharedStructs.Positon({
                     entryPrice: price,
                     chipQuantity: deposited * expontent,
                     owner: owner
@@ -251,7 +253,7 @@ contract Pool {
         } else if (position == PositionType.SHORT) {
             shortCfd.exchange(mintedTokens, owner);
             shortPositons.push(
-                Positon({
+                SharedStructs.Positon({
                     entryPrice: price,
                     chipQuantity: deposited * expontent,
                     owner: owner
@@ -261,11 +263,17 @@ contract Pool {
         return 0;
     }
 
+    /*
+    using PositionHelper for PositionHelper.Storage;
+    PositionHelper.Storage positionStorage;
+    */
+
+
     function _redjuceProtcolPosition(uint256 amount, uint256 price)
         private
         returns (bool)
     {
-        Positon[] storage positions = (
+        SharedStructs.Positon[] storage positions = (
             protcolPosition == PositionType.LONG ? longPositions : shortPositons
         );
 
@@ -274,24 +282,19 @@ contract Pool {
                 // Todo : Should withdrawl to tressury if profits, etc.
                 // Todo : if the deposited amount is greater than the exposoure of the protcol then the protcol has to create a position on the other side of the trade.
                 positions[i].chipQuantity -= amount * expontent;
+    //            positionStorage.remove(i);
             }
         }
         return true;
     }
 
-    function getShorts() public view returns (Positon[] memory) {
+    function getShorts() public view returns (SharedStructs.Positon[] memory) {
         return shortPositons;
     }
 
-    function getLongs() public view returns (Positon[] memory) {
+    function getLongs() public view returns (SharedStructs.Positon[] memory) {
         return longPositions;
     }
-}
-
-struct Positon {
-    uint256 entryPrice;
-    uint256 chipQuantity;
-    address owner;
 }
 
 struct Rebalance {
