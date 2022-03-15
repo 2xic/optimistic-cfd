@@ -275,4 +275,8 @@ describe("Pool", () => {
   it.skip("should credit an dispropotional amount of the less popular side when price moves in their favouir", () => {
     expect.fail("not implemented");
   });
+
+  it.skip("should not be possible for users to frontrun oracle updates", () => {
+    expect.fail("not implemented");
+  });
 });

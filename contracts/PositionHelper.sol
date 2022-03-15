@@ -15,4 +15,73 @@ library PositionHelper {
         }
         positions.pop();
     }
+
+    function moveChipBetweenPositions(
+        uint256 priceChange,
+        SharedStructs.PositionType protcolPosition,
+        SharedStructs.PriceMovment priceDirection,
+        SharedStructs.Positon[] storage longPositions,
+        SharedStructs.Positon[] storage shortPositons
+    ) public returns (uint256) {
+        bool protcolIsShortAndPriceGoesDown = protcolPosition ==
+            SharedStructs.PositionType.SHORT &&
+            priceDirection == SharedStructs.PriceMovment.DOWN;
+        bool isProtcolInWinningPosition = protcolIsShortAndPriceGoesDown;
+        uint256 padding = 100 * 100;
+
+        for (uint256 i = 0; i < shortPositons.length; i++) {
+            if (!isProtcolInWinningPosition) {
+                bool isMovmentWithPool = priceDirection ==
+                    SharedStructs.PriceMovment.DOWN;
+                if (isMovmentWithPool) {
+                    shortPositons[i].chipQuantity *= priceChange + padding;
+                } else {
+                    shortPositons[i].chipQuantity *= priceChange;
+                }
+                shortPositons[i].chipQuantity /= padding;
+            } else if (shortPositons[i].owner == address(this)) {
+                shortPositons[i].chipQuantity *= priceChange;
+                shortPositons[i].chipQuantity /= padding;
+            }
+        }
+
+        for (uint256 i = 0; i < longPositions.length; i++) {
+            bool isMovmentWithPool = priceDirection ==
+                SharedStructs.PriceMovment.UP;
+            if (isMovmentWithPool) {
+                longPositions[i].chipQuantity *= priceChange + padding;
+            } else {
+                longPositions[i].chipQuantity *= priceChange;
+            }
+            longPositions[i].chipQuantity /= padding;
+        }
+
+        return 0;
+    }
+
+    function getPoolBalance(
+        SharedStructs.PriceMovment priceDirection,
+        SharedStructs.Positon[] storage longPositions,
+        SharedStructs.Positon[] storage shortPositons
+    ) public view returns (uint256) {
+        uint256 poolBalance = 0;
+        SharedStructs.Positon[] storage bigPool = (
+            priceDirection == SharedStructs.PriceMovment.DOWN
+                ? shortPositons
+                : longPositions
+        );
+        SharedStructs.Positon[] storage smallPool = (
+            priceDirection == SharedStructs.PriceMovment.DOWN
+                ? longPositions
+                : shortPositons
+        );
+        for (uint256 i = 0; i < bigPool.length; i++) {
+            poolBalance += bigPool[i].chipQuantity;
+        }
+        for (uint256 i = 0; i < smallPool.length; i++) {
+            poolBalance -= smallPool[i].chipQuantity;
+        }
+
+        return poolBalance;
+    }
 }

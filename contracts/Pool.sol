@@ -192,55 +192,21 @@ contract Pool {
     }
 
     function _positionChipAdjustments(
-        uint256 delta,
+        uint256 priceChange,
         SharedStructs.PriceMovment direction
     ) private returns (uint256) {
-        uint256 padding = 100 * 100;
-        bool isProtcolWinning = protcolPosition ==
-            SharedStructs.PositionType.SHORT &&
-            direction == SharedStructs.PriceMovment.DOWN;
-
-        for (uint256 i = 0; i < shortPositons.length; i++) {
-            if (!isProtcolWinning) {
-                shortPositons[i].chipQuantity *= (
-                    direction == SharedStructs.PriceMovment.DOWN
-                        ? delta + padding
-                        : delta
-                );
-                shortPositons[i].chipQuantity /= padding;
-            } else if (shortPositons[i].owner == address(this)) {
-                shortPositons[i].chipQuantity *= delta;
-                shortPositons[i].chipQuantity /= padding;
-            }
-        }
-
-        for (uint256 i = 0; i < longPositions.length; i++) {
-            longPositions[i].chipQuantity *= (
-                direction == SharedStructs.PriceMovment.UP
-                    ? delta + padding
-                    : delta
-            );
-            longPositions[i].chipQuantity /= padding;
-        }
-
-        uint256 poolBalance = 0;
-        SharedStructs.Positon[] storage bigPool = (
-            direction == SharedStructs.PriceMovment.DOWN
-                ? shortPositons
-                : longPositions
+        PositionHelper.moveChipBetweenPositions(
+            priceChange,
+            protcolPosition,
+            direction,
+            longPositions,
+            shortPositons
         );
-        SharedStructs.Positon[] storage smallPool = (
-            direction == SharedStructs.PriceMovment.DOWN
-                ? longPositions
-                : shortPositons
+        uint256 poolBalance = PositionHelper.getPoolBalance(
+            direction,
+            longPositions,
+            shortPositons
         );
-        for (uint256 i = 0; i < bigPool.length; i++) {
-            poolBalance += bigPool[i].chipQuantity;
-        }
-        for (uint256 i = 0; i < smallPool.length; i++) {
-            poolBalance -= smallPool[i].chipQuantity;
-        }
-
         return poolBalance;
     }
 
@@ -278,17 +244,16 @@ contract Pool {
         private
         returns (bool)
     {
-        SharedStructs.Positon[] storage positions = (
-            protcolPosition == SharedStructs.PositionType.LONG
-                ? longPositions
-                : shortPositons
+        bool isProtcolLong = protcolPosition == SharedStructs.PositionType.LONG;
+        SharedStructs.Positon[] storage protcolPositionsPool = (
+            isProtcolLong ? longPositions : shortPositons
         );
 
-        for (uint256 i = 0; i < positions.length; i++) {
-            if (positions[i].owner == address(this)) {
-                if (price == positions[i].entryPrice) {
-                    positions[i].chipQuantity -= amount * expontent;
-                    positions.remove(i);
+        for (uint256 i = 0; i < protcolPositionsPool.length; i++) {
+            if (protcolPositionsPool[i].owner == address(this)) {
+                if (price == protcolPositionsPool[i].entryPrice) {
+                    protcolPositionsPool[i].chipQuantity -= amount * expontent;
+                    protcolPositionsPool.remove(i);
                 }
             }
         }
