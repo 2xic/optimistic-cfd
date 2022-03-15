@@ -247,6 +247,15 @@ describe("Pool", () => {
     expect.fail("not implemented");
   });
 
+  it.skip("shpild stabalize the pools if a user deposits takes the position of the protcol, and deposits more than the exposoure of the protcol", () => {
+    // i.e protcol is long with 50 $c, and a user goes long with 75$, then the protcol has to go short with 25$
+    expect.fail("not implemented");
+  });
+
+  it.skip("should correctly readjust the position of the protcol if a new user enters against the protcol", () => {
+    expect.fail("not implemented");
+  });
+
   it.skip("should update the ownership users has of the long pool on price increase", () => {
     expect.fail("not implemented");
   });

@@ -4,6 +4,10 @@ export async function deployContract() {
   // eslint-disable-next-line no-unused-vars
   const [_owner, randomAddress] = await ethers.getSigners();
 
+  const PositionHelper = await ethers.getContractFactory("PositionHelper");
+  const positionHelper = await PositionHelper.deploy();
+
+  
   const CoreContract = await ethers.getContractFactory("CoreContract");
   const coreContract = await CoreContract.deploy();
   await coreContract.deployed();
@@ -27,7 +31,11 @@ export async function deployContract() {
   const priceConsumer = await PriceConsumerV3Contract.deploy();
   await priceConsumer.deployed();
 
-  const PoolContract = await ethers.getContractFactory("Pool");
+  const PoolContract = await ethers.getContractFactory("Pool", {
+    libraries: {
+      PositionHelper: positionHelper.address,
+    }
+  });
   const pool = await PoolContract.deploy(
     priceConsumer.address,
     chipToken.address,
