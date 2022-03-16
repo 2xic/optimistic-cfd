@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { ethers } from "hardhat";
 import { decodeBoolAbi } from "./helpers/decodeAbi";
 import { deployContract } from "./helpers/deployContract";
 import { getAddressSigner } from "./helpers/getAddressSigner";
@@ -36,7 +37,7 @@ describe("Chip", function () {
   });
 
   it("Should be possible to exchange $c for $cfdlong", async () => {
-    const { chipToken, coreContract, pool, longCfdTOken, shortCfdTopken } =
+    const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
     await chipToken.mint(100);
@@ -64,12 +65,12 @@ describe("Chip", function () {
     );
     expect(longCfdTOkenBalance).to.equal(15);
 
-    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(pool.address);
+    const shortCfdTokenBalance = await shortCfdToken.balanceOf(pool.address);
     expect(shortCfdTokenBalance).to.equal(15);
   });
 
   it("Should be possible to exchange $c for $cfdshort", async () => {
-    const { chipToken, coreContract, pool, longCfdTOken, shortCfdTopken } =
+    const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
     await chipToken.mint(100);
@@ -95,17 +96,44 @@ describe("Chip", function () {
     const longCfdTOkenBalance = await longCfdTOken.balanceOf(pool.address);
     expect(longCfdTOkenBalance).to.equal(15);
 
-    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
+    const shortCfdTokenBalance = await shortCfdToken.balanceOf(
       coreContractSignerAddress
     );
     expect(shortCfdTokenBalance).to.equal(15);
   });
 
-  it.skip("should take an 0.3% fee when entering an synehtetic position", () => {
+  it("only be possible for the owner contract to mint tokens", async () => {
+    const [owner, randomAddress] = await ethers.getSigners();
+
+    const ChipTokenContract = await ethers.getContractFactory("Chip");
+    const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
+
+    await expect(chipToken.connect(randomAddress).mint(100)).to.be.revertedWith(
+      "Only owner can mint tokens"
+    );
+    await chipToken.connect(owner).mint(100);
+  });
+
+  it("only be possible for the owner contract to burn tokens", async () => {
+    const [owner, randomAddress] = await ethers.getSigners();
+
+    const ChipTokenContract = await ethers.getContractFactory("Chip");
+    const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
+
+    await chipToken.connect(owner).mint(100);
+
+    await expect(chipToken.connect(randomAddress).burn(100)).to.be.revertedWith(
+      "Only owner can burn tokens"
+    );
+
+    chipToken.connect(owner).burn(100);
+  });
+
+  it.skip("should take an 0.3% fee when entering an synthetic position", () => {
     expect.fail("Not implemented");
   });
 
-  it.skip("should take an 0.3% fee on when exiting an synehtetic position", () => {
+  it.skip("should take an 0.3% fee on when exiting an synthetic position", () => {
     expect.fail("Not implemented");
   });
 });

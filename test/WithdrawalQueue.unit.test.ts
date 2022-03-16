@@ -1,6 +1,6 @@
 /*
 Todo : 
-Write tests for the withdrawl logic.
+Write tests for the withdrawal logic.
 
 Norswap wrote the following regarding this (https://github.com/2xic/optimistic-cfd/issues/1):
 

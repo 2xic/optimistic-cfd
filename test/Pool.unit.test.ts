@@ -13,7 +13,7 @@ describe("Pool", () => {
       coreContract,
       pool,
       longCfdTOken,
-      shortCfdTopken,
+      shortCfdToken,
       priceConsumer,
     } = await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -40,7 +40,7 @@ describe("Pool", () => {
     const longCfdTokenBalance = await longCfdTOken.balanceOf(pool.address);
     expect(longCfdTokenBalance).to.equal(5);
 
-    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
+    const shortCfdTokenBalance = await shortCfdToken.balanceOf(
       coreContractSignerAddress
     );
     expect(shortCfdTokenBalance).to.equal(5);
@@ -63,7 +63,7 @@ describe("Pool", () => {
       coreContract,
       pool,
       longCfdTOken,
-      shortCfdTopken,
+      shortCfdToken,
       priceConsumer,
     } = await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -90,7 +90,7 @@ describe("Pool", () => {
     const longCfdTokenBalance = await longCfdTOken.balanceOf(pool.address);
     expect(longCfdTokenBalance).to.equal(5);
 
-    const shortCfdTokenBalance = await shortCfdTopken.balanceOf(
+    const shortCfdTokenBalance = await shortCfdToken.balanceOf(
       coreContractSignerAddress
     );
     expect(shortCfdTokenBalance).to.equal(5);
@@ -132,7 +132,7 @@ describe("Pool", () => {
   });
 
   forEach([[Position.SHORT], [Position.LONG]]).it(
-    "should correctly adjust the pools after a price move against the protcol position",
+    "should correctly adjust the pools after a price move against the protocol position",
     async (userPosition) => {
       const { chipToken, coreContract, pool, priceConsumer } =
         await deployContract();
@@ -173,7 +173,7 @@ describe("Pool", () => {
     }
   );
 
-  it("should keep the pools balanced after priced move with the protocl", async () => {
+  it("should keep the pools balanced after priced move with the protocol", async () => {
     const userPosition = Position.LONG;
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
@@ -243,16 +243,16 @@ describe("Pool", () => {
     expect((await pool.getLongs()).length).to.equal(1);
   });
 
-  it.skip("protcol should only burn the principal, and send the rest to the treasury", () => {
+  it.skip("protocol should only burn the principal, and send the rest to the treasury", () => {
     expect.fail("not implemented");
   });
 
-  it.skip("shpild stabalize the pools if a user deposits takes the position of the protcol, and deposits more than the exposoure of the protcol", () => {
-    // i.e protcol is long with 50 $c, and a user goes long with 75$, then the protcol has to go short with 25$
+  it.skip("should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol", () => {
+    // i.e protocol is long with 50 $c, and a user goes long with 75$, then the protocol has to go short with 25$
     expect.fail("not implemented");
   });
 
-  it.skip("should correctly readjust the position of the protcol if a new user enters against the protcol", () => {
+  it.skip("should correctly readjust the position of the protocol if a new user enters against the protocol", () => {
     expect.fail("not implemented");
   });
 
@@ -272,7 +272,7 @@ describe("Pool", () => {
     expect.fail("not implemented");
   });
 
-  it.skip("should credit an dispropotional amount of the less popular side when price moves in their favouir", () => {
+  it.skip("should credit an disproportional amount of the less popular side when price moves in their favour", () => {
     expect.fail("not implemented");
   });
 

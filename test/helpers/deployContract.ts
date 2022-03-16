@@ -7,7 +7,6 @@ export async function deployContract() {
   const PositionHelper = await ethers.getContractFactory("PositionHelper");
   const positionHelper = await PositionHelper.deploy();
 
-  
   const CoreContract = await ethers.getContractFactory("CoreContract");
   const coreContract = await CoreContract.deploy();
   await coreContract.deployed();
@@ -22,8 +21,8 @@ export async function deployContract() {
   await longCfdTOken.deployed();
 
   const ShortCfdEthContract = await ethers.getContractFactory("EthShortCfd");
-  const shortCfdTopken = await ShortCfdEthContract.deploy(_owner.address);
-  await shortCfdTopken.deployed();
+  const shortCfdToken = await ShortCfdEthContract.deploy(_owner.address);
+  await shortCfdToken.deployed();
 
   const PriceConsumerV3Contract = await ethers.getContractFactory(
     "MockPriceOracle"
@@ -34,15 +33,18 @@ export async function deployContract() {
   const PoolContract = await ethers.getContractFactory("Pool", {
     libraries: {
       PositionHelper: positionHelper.address,
-    }
+    },
   });
   const pool = await PoolContract.deploy(
     priceConsumer.address,
     chipToken.address,
     longCfdTOken.address,
-    shortCfdTopken.address
+    shortCfdToken.address
   );
   await pool.deployed();
+
+  await longCfdTOken.transferOwnerShip(pool.address);
+  await shortCfdToken.transferOwnerShip(pool.address);
 
   return {
     ChipTokenContract,
@@ -51,7 +53,7 @@ export async function deployContract() {
     coreContract,
     randomAddress,
     longCfdTOken,
-    shortCfdTopken,
+    shortCfdToken,
     PoolContract,
     pool,
     priceConsumer,
