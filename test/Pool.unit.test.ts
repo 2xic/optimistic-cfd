@@ -1,10 +1,10 @@
 import { expect } from "chai";
-import { decodeBoolAbi } from "./helpers/decodeAbi";
 import { deployContract } from "./helpers/deployContract";
 import { getAddressSigner } from "./helpers/getAddressSigner";
 import { sumChipQuantity } from "./helpers/sumPositions";
 import { Position } from "./types/Position";
 import forEach from "mocha-each";
+import { mintTokenToPool } from "./helpers/mintChipTokensToPool";
 
 describe("Pool", () => {
   it("should move $c from the short pool to the long pool on price increase", async () => {
@@ -17,17 +17,12 @@ describe("Pool", () => {
       priceConsumer,
     } = await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await chipToken.mint(100);
-
-    const coreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(coreContractBalance).to.equal(100);
-
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-    expect(decodeBoolAbi({ data })).to.equal(true);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
@@ -67,17 +62,12 @@ describe("Pool", () => {
       priceConsumer,
     } = await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await chipToken.mint(100);
-
-    const coreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(coreContractBalance).to.equal(100);
-
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-    expect(decodeBoolAbi({ data })).to.equal(true);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
@@ -111,17 +101,12 @@ describe("Pool", () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await chipToken.mint(100);
-
-    const coreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(coreContractBalance).to.equal(100);
-
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-    expect(decodeBoolAbi({ data })).to.equal(true);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
@@ -137,17 +122,12 @@ describe("Pool", () => {
       const { chipToken, coreContract, pool, priceConsumer } =
         await deployContract();
       const coreContractSignerAddress = await getAddressSigner(coreContract);
-      await chipToken.mint(100);
-
-      const coreContractBalance = await chipToken.balanceOf(
-        coreContractSignerAddress
-      );
-      expect(coreContractBalance).to.equal(100);
-
-      const { data } = await chipToken
-        .connect(coreContract.signer)
-        .approve(pool.address, 100);
-      expect(decodeBoolAbi({ data })).to.equal(true);
+      await mintTokenToPool({
+        chipToken,
+        coreContract,
+        pool,
+        coreContractSignerAddress,
+      });
 
       await priceConsumer.connect(coreContract.signer).setPrice(10);
       await pool.connect(coreContract.signer).init(50, userPosition);
@@ -178,30 +158,20 @@ describe("Pool", () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await chipToken.mint(100);
-
-    const coreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(coreContractBalance).to.equal(100);
-
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-    expect(decodeBoolAbi({ data })).to.equal(true);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, userPosition);
 
-    const updatedCoreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(updatedCoreContractBalance).to.equal(50);
-
     expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
     expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
 
-    // Protcol will be short, and will therefore "burn" the outstanding
+    // Protocol will be short, and will therefore "burn" the outstanding
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
@@ -209,23 +179,25 @@ describe("Pool", () => {
 
     expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
     expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(15);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
   it("should burn minted $c if fresh users join the pool", async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await chipToken.mint(100);
-
-    const coreContractBalance = await chipToken.balanceOf(
-      coreContractSignerAddress
-    );
-    expect(coreContractBalance).to.equal(100);
-
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-    expect(decodeBoolAbi({ data })).to.equal(true);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
@@ -241,6 +213,102 @@ describe("Pool", () => {
 
     expect((await pool.getShorts()).length).to.equal(1);
     expect((await pool.getLongs()).length).to.equal(1);
+  });
+
+  it("should not be possible to call enter before init", async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await expect(
+      pool.connect(randomAddress).enter(50, Position.SHORT)
+    ).to.be.revertedWith("call init before enter");
+  });
+
+  it("should correctly calculate the user balance in a 1-1 scenario (user against protocol)", async () => {
+    const { chipToken, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    expect((await pool.getShorts()).length).to.equal(1);
+    expect((await pool.getLongs()).length).to.equal(1);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
+
+    const userBalance = await pool.getUserBalance(
+      await getAddressSigner(coreContract)
+    );
+
+    expect(userBalance).to.equal(75000);
+  });
+
+  it("should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)", async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    await pool.connect(randomAddress).enter(50, Position.LONG);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    expect((await pool.getShorts()).length).to.equal(1);
+    expect((await pool.getLongs()).length).to.equal(1);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
+
+    expect((await pool.getShorts()).length).to.equal(1);
+    expect((await pool.getLongs()).length).to.equal(2);
+
+    const userBalance = await pool.getUserBalance(
+      await getAddressSigner(coreContract)
+    );
+    expect(userBalance).to.equal(75000);
+
+    const protocolAddressBalance = await pool.getUserBalance(pool.address);
+    expect(protocolAddressBalance).to.equal(50000);
+
+    const randomAddressBalance = await pool.getUserBalance(
+      await randomAddress.getAddress()
+    );
+    expect(randomAddressBalance).to.equal(25000);
   });
 
   it.skip("protocol should only burn the principal, and send the rest to the treasury", () => {

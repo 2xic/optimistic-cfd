@@ -23,6 +23,7 @@ contract Pool {
     EthLongCfd private longCfd;
     EthShortCfd private shortCfd;
 
+    bool private isInitalized;
     uint256 private lastPrice;
     uint16 private expontent;
 
@@ -37,6 +38,7 @@ contract Pool {
         shortCfd = EthShortCfd(_shortCfd);
         chipToken = IERC20(_chipToken);
         expontent = 1000;
+        isInitalized = false;
     }
 
     function init(uint256 amount, SharedStructs.PositionType position)
@@ -44,12 +46,13 @@ contract Pool {
         payable
         returns (bool)
     {
-        require(lastPrice == 0, "Init should only be called once");
+        require(!isInitalized, "Init should only be called once");
 
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
         uint256 deposited = (amount - leftover);
         lastPrice = price;
+        isInitalized = true;
 
         if (position == SharedStructs.PositionType.LONG) {
             require(
@@ -96,6 +99,8 @@ contract Pool {
         payable
         returns (bool)
     {
+        require(isInitalized, "call init before enter");
+
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
         uint256 deposited = (amount - leftover);
@@ -107,6 +112,23 @@ contract Pool {
             _redjuceProtcolPosition(deposited, price);
         }
         return true;
+    }
+
+    function getUserBalance(address user) public view returns (uint256) {
+        uint256 balance = 0;
+        for (uint256 i = 0; i < longPositions.length; i++) {
+            if (longPositions[i].owner == user) {
+                balance += longPositions[i].chipQuantity;
+            }
+        }
+
+        for (uint256 i = 0; i < shortPositons.length; i++) {
+            if (shortPositons[i].owner == user) {
+                balance += shortPositons[i].chipQuantity;
+            }
+        }
+
+        return balance;
     }
 
     function update() public payable returns (bool) {
