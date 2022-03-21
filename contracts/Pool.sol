@@ -202,23 +202,13 @@ contract Pool {
 
         bool isPriceMovment = isPriceIncrease || isPriceDecrease;
 
-        if (isPriceMovment) {
-            return
-                SharedStructs.Rebalance({
-                    direction: isPriceIncrease
-                        ? SharedStructs.PriceMovment.UP
-                        : SharedStructs.PriceMovment.DOWN,
-                    minted: minted,
-                    price: price
-                });
-        }
-
         return
-            SharedStructs.Rebalance({
-                direction: SharedStructs.PriceMovment.STABLE,
-                minted: minted,
-                price: price
-            });
+            PositionHelper.getRebalance(
+                isPriceMovment,
+                isPriceIncrease,
+                minted,
+                price
+            );
     }
 
     function _positionChipAdjustments(
@@ -296,13 +286,11 @@ contract Pool {
                         price < protcolPositionsPool[i].entryPrice;
 
                     if (hasShortProfits) {
-                        uint256 entryPrice = protcolPositionsPool[i].entryPrice;
-                        uint256 priceDelta = ((entryPrice * 100 - price * 100) /
-                            entryPrice) * 100;
-                        uint256 profits = ((protcolPositionsPool[i]
-                            .entryChipQuantity - amount) * priceDelta) /
-                            (1000_0000);
-
+                        uint256 profits = PositionHelper.calculateProfits(
+                            protcolPositionsPool[i],
+                            amount,
+                            price
+                        );
                         chipToken.approve(address(this), profits);
                         chipToken.transferFrom(
                             address(this),
@@ -310,14 +298,15 @@ contract Pool {
                             profits
                         );
 
-                        uint256 newBalance = adjustment <
-                            protcolPositionsPool[i].chipQuantity
-                            ? protcolPositionsPool[i].chipQuantity - adjustment
-                            : 0;
+                        uint256 newBalance = PositionHelper
+                            .getProtcolChipAdjustmentBalance(
+                                protcolPositionsPool[i],
+                                adjustment
+                            );
                         protcolPositionsPool[i].chipQuantity = newBalance;
                         protcolPositionsPool[i].entryChipQuantity = newBalance;
                     } else {
-                        require(false, "case not implemented");
+                        require(false, "Not implemented");
                     }
                 }
 
@@ -334,15 +323,13 @@ contract Pool {
         );
         bool protcolHasToCreatePostiion = 0 < poolBalance;
 
-        if (protcolHasToCreatePostiion) {
-            if (!isProtcolLong) {
-                _createPosition(
-                    SharedStructs.PositionType.LONG,
-                    price,
-                    poolBalance / expontent,
-                    address(this)
-                );
-            }
+        if (protcolHasToCreatePostiion && !isProtcolLong) {
+            _createPosition(
+                SharedStructs.PositionType.LONG,
+                price,
+                poolBalance / expontent,
+                address(this)
+            );
         }
 
         return true;

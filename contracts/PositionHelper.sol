@@ -84,4 +84,50 @@ library PositionHelper {
 
         return poolBalance;
     }
+
+    function getRebalance(
+        bool isPriceMovment,
+        bool isPriceIncrease,
+        uint256 minted,
+        uint256 price
+    ) public pure returns (SharedStructs.Rebalance memory) {
+        SharedStructs.PriceMovment direction = isPriceMovment
+            ? (
+                isPriceIncrease
+                    ? SharedStructs.PriceMovment.UP
+                    : SharedStructs.PriceMovment.DOWN
+            )
+            : SharedStructs.PriceMovment.STABLE;
+
+        return
+            SharedStructs.Rebalance({
+                direction: direction,
+                minted: minted,
+                price: price
+            });
+    }
+
+    function calculateProfits(
+        SharedStructs.Positon memory position,
+        uint256 amount,
+        uint256 price
+    ) public pure returns (uint256) {
+        uint256 entryPrice = position.entryPrice;
+        uint256 priceDelta = ((entryPrice * 100 - price * 100) / entryPrice) *
+            100;
+        uint256 profits = ((position.entryChipQuantity - amount) * priceDelta) /
+            (1000_0000);
+        return profits;
+    }
+
+    function getProtcolChipAdjustmentBalance(
+        SharedStructs.Positon memory position,
+        uint256 adjustment
+    ) public pure returns (uint256) {
+        if (adjustment < position.chipQuantity) {
+            return position.chipQuantity - adjustment;
+        } else {
+            return 0;
+        }
+    }
 }
