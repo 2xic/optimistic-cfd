@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 library SharedStructs {
     struct Positon {
         uint256 entryPrice;
+        uint256 entryChipQuantity;
         uint256 chipQuantity;
         address owner;
     }

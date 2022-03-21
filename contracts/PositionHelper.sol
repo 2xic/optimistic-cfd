@@ -65,19 +65,19 @@ library PositionHelper {
         SharedStructs.Positon[] storage shortPositons
     ) public view returns (uint256) {
         uint256 poolBalance = 0;
+        bool isPriceDown = priceDirection == SharedStructs.PriceMovment.DOWN;
+
         SharedStructs.Positon[] storage bigPool = (
-            priceDirection == SharedStructs.PriceMovment.DOWN
-                ? shortPositons
-                : longPositions
+            isPriceDown ? shortPositons : longPositions
         );
         SharedStructs.Positon[] storage smallPool = (
-            priceDirection == SharedStructs.PriceMovment.DOWN
-                ? longPositions
-                : shortPositons
+            isPriceDown ? longPositions : shortPositons
         );
+
         for (uint256 i = 0; i < bigPool.length; i++) {
             poolBalance += bigPool[i].chipQuantity;
         }
+
         for (uint256 i = 0; i < smallPool.length; i++) {
             poolBalance -= smallPool[i].chipQuantity;
         }

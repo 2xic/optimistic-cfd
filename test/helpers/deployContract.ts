@@ -11,6 +11,10 @@ export async function deployContract() {
   const coreContract = await CoreContract.deploy();
   await coreContract.deployed();
 
+  const TreasuryContract = await ethers.getContractFactory("Treasury");
+  const treasury = await TreasuryContract.deploy();
+  await treasury.deployed();
+
   const ChipTokenContract = await ethers.getContractFactory("Chip");
   const chipToken = await ChipTokenContract.deploy(
     await coreContract.signer.getAddress()
@@ -39,7 +43,8 @@ export async function deployContract() {
     priceConsumer.address,
     chipToken.address,
     longCfdTOken.address,
-    shortCfdToken.address
+    shortCfdToken.address,
+    treasury.address
   );
   await pool.deployed();
 
@@ -56,6 +61,7 @@ export async function deployContract() {
     shortCfdToken,
     PoolContract,
     pool,
+    treasury,
     priceConsumer,
   };
 }

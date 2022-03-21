@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
 import {EthLongCfd} from "./EthLongCfd.sol";
 import {EthShortCfd} from "./EthShortCfd.sol";
+import {Treasury} from "./Treasury.sol";
 import {Chip} from "./Chip.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -22,6 +23,7 @@ contract Pool {
     IERC20 private chipToken;
     EthLongCfd private longCfd;
     EthShortCfd private shortCfd;
+    Treasury private tresuary;
 
     bool private isInitalized;
     uint256 private lastPrice;
@@ -31,12 +33,14 @@ contract Pool {
         address _priceFeed,
         address _chipToken,
         address _longTCfd,
-        address _shortCfd
+        address _shortCfd,
+        address _tresuary
     ) {
         priceOracle = IPriceOracle(_priceFeed);
         longCfd = EthLongCfd(_longTCfd);
         shortCfd = EthShortCfd(_shortCfd);
         chipToken = IERC20(_chipToken);
+        tresuary = Treasury(_tresuary);
         expontent = 1000;
         isInitalized = false;
     }
@@ -109,7 +113,9 @@ contract Pool {
 
         if (isOverwritingProtcol) {
             _createPosition(position, price, deposited, msg.sender);
-            _redjuceProtcolPosition(deposited, price);
+            _readjuceProtcolPosition(deposited, price);
+        } else {
+            require(false, "not implemented");
         }
         return true;
     }
@@ -145,6 +151,7 @@ contract Pool {
             // currently just "fake" mints, but this will be changed as new tests are implemented
             longPositions.push(
                 SharedStructs.Positon({
+                    entryChipQuantity: rebalance.minted,
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
                     owner: address(this)
@@ -153,6 +160,7 @@ contract Pool {
         } else if (priceMovedAgainstProtcoShort) {
             shortPositons.push(
                 SharedStructs.Positon({
+                    entryChipQuantity: rebalance.minted,
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
                     owner: address(this)
@@ -245,6 +253,7 @@ contract Pool {
             longPositions.push(
                 SharedStructs.Positon({
                     entryPrice: price,
+                    entryChipQuantity: deposited * expontent,
                     chipQuantity: deposited * expontent,
                     owner: owner
                 })
@@ -254,6 +263,7 @@ contract Pool {
             shortPositons.push(
                 SharedStructs.Positon({
                     entryPrice: price,
+                    entryChipQuantity: deposited * expontent,
                     chipQuantity: deposited * expontent,
                     owner: owner
                 })
@@ -262,7 +272,7 @@ contract Pool {
         return 0;
     }
 
-    function _redjuceProtcolPosition(uint256 amount, uint256 price)
+    function _readjuceProtcolPosition(uint256 amount, uint256 price)
         private
         returns (bool)
     {
@@ -272,13 +282,69 @@ contract Pool {
         );
 
         for (uint256 i = 0; i < protcolPositionsPool.length; i++) {
-            if (protcolPositionsPool[i].owner == address(this)) {
+            bool isProtcol = protcolPositionsPool[i].owner == address(this);
+
+            if (isProtcol) {
+                uint256 adjustment = amount * expontent;
+
                 if (price == protcolPositionsPool[i].entryPrice) {
-                    protcolPositionsPool[i].chipQuantity -= amount * expontent;
+                    protcolPositionsPool[i].chipQuantity -= adjustment;
+                } else if (
+                    amount <= protcolPositionsPool[i].entryChipQuantity
+                ) {
+                    bool hasShortProfits = !isProtcolLong &&
+                        price < protcolPositionsPool[i].entryPrice;
+
+                    if (hasShortProfits) {
+                        uint256 entryPrice = protcolPositionsPool[i].entryPrice;
+                        uint256 priceDelta = ((entryPrice * 100 - price * 100) /
+                            entryPrice) * 100;
+                        uint256 profits = ((protcolPositionsPool[i]
+                            .entryChipQuantity - amount) * priceDelta) /
+                            (1000_0000);
+
+                        chipToken.approve(address(this), profits);
+                        chipToken.transferFrom(
+                            address(this),
+                            address(tresuary),
+                            profits
+                        );
+
+                        uint256 newBalance = adjustment <
+                            protcolPositionsPool[i].chipQuantity
+                            ? protcolPositionsPool[i].chipQuantity - adjustment
+                            : 0;
+                        protcolPositionsPool[i].chipQuantity = newBalance;
+                        protcolPositionsPool[i].entryChipQuantity = newBalance;
+                    } else {
+                        require(false, "case not implemented");
+                    }
+                }
+
+                if (protcolPositionsPool[i].chipQuantity == 0) {
                     protcolPositionsPool.remove(i);
                 }
             }
         }
+
+        uint256 poolBalance = PositionHelper.getPoolBalance(
+            SharedStructs.PriceMovment.DOWN,
+            longPositions,
+            shortPositons
+        );
+        bool protcolHasToCreatePostiion = 0 < poolBalance;
+
+        if (protcolHasToCreatePostiion) {
+            if (!isProtcolLong) {
+                _createPosition(
+                    SharedStructs.PositionType.LONG,
+                    price,
+                    poolBalance / expontent,
+                    address(this)
+                );
+            }
+        }
+
         return true;
     }
 

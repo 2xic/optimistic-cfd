@@ -311,8 +311,74 @@ describe("Pool", () => {
     expect(randomAddressBalance).to.equal(25000);
   });
 
-  it.skip("protocol should only burn the principal, and send the rest to the treasury", () => {
-    expect.fail("not implemented");
+  it("should correctly re-balance the pools after a price has changed, and new users enter pool", async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.LONG);
+
+    await chipToken.connect(pool.signer).approve(pool.address, 100);
+    expect(await chipToken.balanceOf(pool.address)).to.equal(50);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+    await pool.connect(pool.signer).update();
+    await pool.connect(randomAddress).enter(50, Position.SHORT);
+
+    expect(
+      sumChipQuantity(await pool.getShorts(), {
+        address: pool.address,
+      })
+    ).to.equal(0);
+
+    expect(
+      sumChipQuantity(await pool.getLongs(), {
+        address: pool.address,
+      })
+    ).to.equal(25000);
+
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+
+    expect((await pool.getShorts()).length).to.equal(1);
+    expect((await pool.getLongs()).length).to.equal(2);
+  });
+
+  it("protocol should only burn the principal, and send the rest to the treasury", async () => {
+    const {
+      chipToken,
+      randomAddress,
+      treasury,
+      coreContract,
+      pool,
+      priceConsumer,
+    } = await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.LONG);
+
+    await chipToken.connect(pool.signer).approve(pool.address, 100);
+    expect(await chipToken.balanceOf(pool.address)).to.equal(50);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+    await pool.connect(pool.signer).update();
+    await pool.connect(randomAddress).enter(50, Position.SHORT);
+
+    expect(await chipToken.balanceOf(treasury.address)).to.equal(24);
   });
 
   it.skip("should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol", () => {

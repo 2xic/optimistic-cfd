@@ -1,4 +1,4 @@
-import { BigNumber } from "@ethersproject/bignumber";
+import { BigNumber } from "ethers";
 
 interface Positions {
   entryPrice: BigNumber;
@@ -6,6 +6,21 @@ interface Positions {
   owner: string;
 }
 
-export function sumChipQuantity(item: Positions[]): BigNumber {
-  return item.map((item) => item.chipQuantity).reduce((a, b) => a.add(b));
+export function sumChipQuantity(
+  item: Positions[],
+  options?:
+    | {
+        address: string;
+      }
+    | undefined
+): BigNumber {
+  return item
+    .filter((item) => {
+      if (options && options.address) {
+        return options.address === item.owner;
+      }
+      return true;
+    })
+    .map((item) => item.chipQuantity)
+    .reduce((a, b) => a.add(b), BigNumber.from(0));
 }
