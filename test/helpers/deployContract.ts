@@ -7,6 +7,16 @@ export async function deployContract() {
   const PositionHelper = await ethers.getContractFactory("PositionHelper");
   const positionHelper = await PositionHelper.deploy();
 
+  const RebalancePoolHelper = await ethers.getContractFactory(
+    "RebalancePoolHelper",
+    {
+      libraries: {
+        PositionHelper: positionHelper.address,
+      },
+    }
+  );
+  const rebalanceHelper = await RebalancePoolHelper.deploy();
+
   const CoreContract = await ethers.getContractFactory("CoreContract");
   const coreContract = await CoreContract.deploy();
   await coreContract.deployed();
@@ -37,6 +47,7 @@ export async function deployContract() {
   const PoolContract = await ethers.getContractFactory("Pool", {
     libraries: {
       PositionHelper: positionHelper.address,
+      RebalancePoolHelper: rebalanceHelper.address,
     },
   });
   const pool = await PoolContract.deploy(
