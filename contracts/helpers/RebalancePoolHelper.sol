@@ -62,9 +62,7 @@ library RebalancePoolHelper {
         IERC20 chipToken,
         address tresuaryAddress,
         bool isProtcolLong
-    ) public returns (SharedStructs.Positon memory ) {
-       // uint256 adjustment = amount * expontent;
-
+    ) public returns (SharedStructs.Positon memory) {
         if (price == position.entryPrice) {
             position.chipQuantity -= adjustment;
         } else if (amount <= position.entryChipQuantity) {
@@ -78,17 +76,10 @@ library RebalancePoolHelper {
                     price
                 );
                 chipToken.approve(address(this), profits);
-                chipToken.transferFrom(
-                    address(this),
-                    tresuaryAddress, //address(tresuary),
-                    profits
-                );
+                chipToken.transferFrom(address(this), tresuaryAddress, profits);
 
                 uint256 newBalance = PositionHelper
-                    .getProtcolChipAdjustmentBalance(
-                        position,
-                        adjustment
-                    );
+                    .getProtcolChipAdjustmentBalance(position, adjustment);
                 position.chipQuantity = newBalance;
                 position.entryChipQuantity = newBalance;
             } else {

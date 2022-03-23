@@ -11,11 +11,13 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SharedStructs} from "./structs/SharedStructs.sol";
 import {PositionHelper} from "./helpers/PositionHelper.sol";
-import { RebalancePoolHelper } from "./helpers/RebalancePoolHelper.sol";
+import {RebalancePoolHelper} from "./helpers/RebalancePoolHelper.sol";
+import {MathHelper} from "./helpers/MathHelper.sol";
 
 contract Pool {
     using PositionHelper for SharedStructs.Positon[];
     using RebalancePoolHelper for SharedStructs.Positon[];
+    using MathHelper for uint256;
 
     SharedStructs.Positon[] public longPositions;
     SharedStructs.Positon[] public shortPositons;
@@ -30,13 +32,15 @@ contract Pool {
     bool private isInitalized;
     uint256 private lastPrice;
     uint16 private expontent;
+    uint256 private fee;
 
     constructor(
         address _priceFeed,
         address _chipToken,
         address _longTCfd,
         address _shortCfd,
-        address _tresuary
+        address _tresuary,
+        uint256 _fee
     ) {
         priceOracle = IPriceOracle(_priceFeed);
         longCfd = EthLongCfd(_longTCfd);
@@ -45,6 +49,7 @@ contract Pool {
         tresuary = Treasury(_tresuary);
         expontent = 1000;
         isInitalized = false;
+        fee = _fee;
     }
 
     function init(uint256 amount, SharedStructs.PositionType position)
@@ -56,43 +61,45 @@ contract Pool {
 
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
-        uint256 deposited = (amount - leftover);
+        // TODO: I think this can be solved better if you just rescale the numbers
+        uint256 rawDeposited = amount - leftover;
+        uint256 deposited = _subtractFee(rawDeposited);
         lastPrice = price;
         isInitalized = true;
 
         if (position == SharedStructs.PositionType.LONG) {
             require(
-                chipToken.transferFrom(msg.sender, address(this), deposited),
+                chipToken.transferFrom(msg.sender, address(this), rawDeposited),
                 "Transfer of chip token failed"
             );
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
-                deposited,
+                deposited.increasePresiion(),
                 msg.sender
             );
             _createPosition(
                 SharedStructs.PositionType.SHORT,
                 price,
-                deposited,
+                deposited.increasePresiion(),
                 address(this)
             );
             protcolPosition = SharedStructs.PositionType.SHORT;
         } else if (position == SharedStructs.PositionType.SHORT) {
             require(
-                chipToken.transferFrom(msg.sender, address(this), deposited),
+                chipToken.transferFrom(msg.sender, address(this), rawDeposited),
                 "Transfer of chip token failed"
             );
             _createPosition(
                 SharedStructs.PositionType.SHORT,
                 price,
-                deposited,
+                deposited.increasePresiion(),
                 msg.sender
             );
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
-                deposited,
+                deposited.increasePresiion(),
                 address(this)
             );
             protcolPosition = SharedStructs.PositionType.LONG;
@@ -109,12 +116,18 @@ contract Pool {
 
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
-        uint256 deposited = (amount - leftover);
+        // TODO: I think this can be solved better if you just rescale the numbers
+        uint256 deposited = _subtractFee(amount - leftover);
 
         bool isOverwritingProtcol = position == protcolPosition;
 
         if (isOverwritingProtcol) {
-            _createPosition(position, price, deposited, msg.sender);
+            _createPosition(
+                position,
+                price,
+                deposited.increasePresiion(),
+                msg.sender
+            );
             _readjuceProtcolPosition(deposited, price);
         } else {
             require(false, "not implemented");
@@ -185,15 +198,33 @@ contract Pool {
 
         lastPrice = price;
 
-        return RebalancePoolHelper.rebalancePools(
-            currentPrice,
-            oldPrice,
-            protcolPosition,
-            longPositions,
-            shortPositons
-        );
+        return
+            RebalancePoolHelper.rebalancePools(
+                currentPrice,
+                oldPrice,
+                protcolPosition,
+                longPositions,
+                shortPositons
+            );
+    }
 
-        
+    function getShorts() public view returns (SharedStructs.Positon[] memory) {
+        return shortPositons;
+    }
+
+    function getLongs() public view returns (SharedStructs.Positon[] memory) {
+        return longPositions;
+    }
+
+    function _subtractFee(uint256 amount) private view returns (uint256) {
+        if (fee != 0) {
+            uint256 scaledFeeAmount = amount.increasePresiion() * fee;
+            uint256 normalizedFeeAmount = scaledFeeAmount / 10_000;
+            uint256 deposited = amount.increasePresiion() - normalizedFeeAmount;
+
+            return deposited.noramlizeNumber();
+        }
+        return amount;
     }
 
     function _createPosition(
@@ -202,11 +233,11 @@ contract Pool {
         uint256 deposited,
         address owner
     ) private returns (uint256) {
-        uint256 mintedTokens = deposited / price;
+        uint256 mintedTokens = deposited.noramlizeNumber() / price;
         SharedStructs.Positon memory postion = SharedStructs.Positon({
             entryPrice: price,
-            entryChipQuantity: deposited * expontent,
-            chipQuantity: deposited * expontent,
+            entryChipQuantity: deposited,
+            chipQuantity: deposited,
             owner: owner
         });
 
@@ -233,15 +264,16 @@ contract Pool {
             bool isProtcol = protcolPositionsPool[i].owner == address(this);
 
             if (isProtcol) {
-                protcolPositionsPool[i] = RebalancePoolHelper.rebalanceProtocolExposoure(
-                    protcolPositionsPool[i],
-                    amount,
-                    price,
-                    amount * expontent,
-                    chipToken,
-                    address(tresuary),
-                    isProtcolLong
-                );
+                protcolPositionsPool[i] = RebalancePoolHelper
+                    .rebalanceProtocolExposoure(
+                        protcolPositionsPool[i],
+                        amount,
+                        price,
+                        amount.increasePresiion(),
+                        chipToken,
+                        address(tresuary),
+                        isProtcolLong
+                    );
 
                 if (protcolPositionsPool[i].chipQuantity == 0) {
                     protcolPositionsPool.remove(i);
@@ -260,7 +292,7 @@ contract Pool {
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
-                poolBalance / expontent,
+                poolBalance,
                 address(this)
             );
         } else if (protcolHasToCreatePostiion && isProtcolLong) {
@@ -268,13 +300,5 @@ contract Pool {
         }
 
         return true;
-    }
-
-    function getShorts() public view returns (SharedStructs.Positon[] memory) {
-        return shortPositons;
-    }
-
-    function getLongs() public view returns (SharedStructs.Positon[] memory) {
-        return longPositions;
     }
 }

@@ -1,10 +1,21 @@
 import { ethers } from "hardhat";
 
-export async function deployContract() {
+export async function deployContract(
+  options: { fee: number } = {
+    fee: 0,
+  }
+) {
   // eslint-disable-next-line no-unused-vars
   const [_owner, randomAddress] = await ethers.getSigners();
 
-  const PositionHelper = await ethers.getContractFactory("PositionHelper");
+  const MathHelper = await ethers.getContractFactory("MathHelper");
+  const mathHelper = await MathHelper.deploy();
+
+  const PositionHelper = await ethers.getContractFactory("PositionHelper", {
+    libraries: {
+ //     MathHelper: mathHelper.address,
+    },
+  });
   const positionHelper = await PositionHelper.deploy();
 
   const RebalancePoolHelper = await ethers.getContractFactory(
@@ -48,6 +59,7 @@ export async function deployContract() {
     libraries: {
       PositionHelper: positionHelper.address,
       RebalancePoolHelper: rebalanceHelper.address,
+      MathHelper: mathHelper.address,
     },
   });
   const pool = await PoolContract.deploy(
@@ -55,7 +67,8 @@ export async function deployContract() {
     chipToken.address,
     longCfdTOken.address,
     shortCfdToken.address,
-    treasury.address
+    treasury.address,
+    options.fee
   );
   await pool.deployed();
 

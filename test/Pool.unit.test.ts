@@ -381,6 +381,32 @@ describe("Pool", () => {
     expect(await chipToken.balanceOf(treasury.address)).to.equal(24);
   });
 
+  it("should take an 0.3% fee when entering an synthetic position", async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract({
+        fee: 0.03 * 100_00,
+      });
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    await pool.connect(randomAddress).enter(50, Position.LONG);
+
+    // It's a bit smaller than 0.03 % because of the precision, we can in theory increase this
+    expect(sumChipQuantity(await pool.getShorts())).to.equal(48000);
+    expect(sumChipQuantity(await pool.getLongs())).to.equal(48000);
+  });
+
+  it.skip("should take an 0.3% fee on when exiting an synthetic position", () => {
+    expect.fail("Not implemented");
+  });
+
   it.skip("should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol", () => {
     // i.e protocol is long with 50 $c, and a user goes long with 75$, then the protocol has to go short with 25$
     expect.fail("not implemented");

@@ -128,12 +128,4 @@ describe("Chip", function () {
 
     chipToken.connect(owner).burn(100);
   });
-
-  it.skip("should take an 0.3% fee when entering an synthetic position", () => {
-    expect.fail("Not implemented");
-  });
-
-  it.skip("should take an 0.3% fee on when exiting an synthetic position", () => {
-    expect.fail("Not implemented");
-  });
 });
