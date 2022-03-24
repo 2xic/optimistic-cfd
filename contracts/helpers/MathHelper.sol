@@ -12,11 +12,11 @@ library MathHelper {
         return ((a * expontent - b * expontent) / (a * expontent)) * 100;
     }
 
-    function increasePresiion(uint256 number) public pure returns (uint256) {
+    function increasePrecision(uint256 number) public pure returns (uint256) {
         return number * expontent;
     }
 
-    function noramlizeNumber(uint256 number) public pure returns (uint256) {
+    function normalizeNumber(uint256 number) public pure returns (uint256) {
         return number / expontent;
     }
 }

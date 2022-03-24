@@ -8,7 +8,7 @@ import {MathHelper} from "./MathHelper.sol";
 library PositionHelper {
     using MathHelper for uint256;
 
-    function remove(SharedStructs.Positon[] storage positions, uint256 index)
+    function remove(SharedStructs.Position[] storage positions, uint256 index)
         public
     {
         require(index < positions.length, "Index overflows");
@@ -21,38 +21,38 @@ library PositionHelper {
 
     function moveChipBetweenPositions(
         uint256 priceChange,
-        SharedStructs.PositionType protcolPosition,
-        SharedStructs.PriceMovment priceDirection,
-        SharedStructs.Positon[] storage longPositions,
-        SharedStructs.Positon[] storage shortPositons
+        SharedStructs.PositionType protocolPosition,
+        SharedStructs.PriceMovement priceDirection,
+        SharedStructs.Position[] storage longPositions,
+        SharedStructs.Position[] storage shortPositions
     ) public returns (uint256) {
-        bool protcolIsShortAndPriceGoesDown = protcolPosition ==
+        bool protocolIsShortAndPriceGoesDown = protocolPosition ==
             SharedStructs.PositionType.SHORT &&
-            priceDirection == SharedStructs.PriceMovment.DOWN;
-        bool isProtcolInWinningPosition = protcolIsShortAndPriceGoesDown;
+            priceDirection == SharedStructs.PriceMovement.DOWN;
+        bool isProtocolInWinningPosition = protocolIsShortAndPriceGoesDown;
         uint256 padding = 100 * 100;
 
-        for (uint256 i = 0; i < shortPositons.length; i++) {
-            if (!isProtcolInWinningPosition) {
-                bool isMovmentWithPool = priceDirection ==
-                    SharedStructs.PriceMovment.DOWN;
-                uint256 adjustments = getProtolChipAdjustment(
-                    isMovmentWithPool,
+        for (uint256 i = 0; i < shortPositions.length; i++) {
+            if (!isProtocolInWinningPosition) {
+                bool isMovementWithPool = priceDirection ==
+                    SharedStructs.PriceMovement.DOWN;
+                uint256 adjustments = getProtocolChipAdjustment(
+                    isMovementWithPool,
                     priceChange,
                     padding
                 );
-                shortPositons[i].chipQuantity *= adjustments;
-            } else if (shortPositons[i].owner == address(this)) {
-                shortPositons[i].chipQuantity *= priceChange;
+                shortPositions[i].chipQuantity *= adjustments;
+            } else if (shortPositions[i].owner == address(this)) {
+                shortPositions[i].chipQuantity *= priceChange;
             }
-            shortPositons[i].chipQuantity /= padding;
+            shortPositions[i].chipQuantity /= padding;
         }
 
         for (uint256 i = 0; i < longPositions.length; i++) {
-            bool isMovmentWithPool = priceDirection ==
-                SharedStructs.PriceMovment.UP;
-            uint256 adjustments = getProtolChipAdjustment(
-                isMovmentWithPool,
+            bool isMovementWithPool = priceDirection ==
+                SharedStructs.PriceMovement.UP;
+            uint256 adjustments = getProtocolChipAdjustment(
+                isMovementWithPool,
                 priceChange,
                 padding
             );
@@ -65,18 +65,18 @@ library PositionHelper {
     }
 
     function getPoolBalance(
-        SharedStructs.PriceMovment priceDirection,
-        SharedStructs.Positon[] storage longPositions,
-        SharedStructs.Positon[] storage shortPositons
+        SharedStructs.PriceMovement priceDirection,
+        SharedStructs.Position[] storage longPositions,
+        SharedStructs.Position[] storage shortPositions
     ) public view returns (uint256) {
         uint256 poolBalance = 0;
-        bool isPriceDown = priceDirection == SharedStructs.PriceMovment.DOWN;
+        bool isPriceDown = priceDirection == SharedStructs.PriceMovement.DOWN;
 
-        SharedStructs.Positon[] storage bigPool = (
-            isPriceDown ? shortPositons : longPositions
+        SharedStructs.Position[] storage bigPool = (
+            isPriceDown ? shortPositions : longPositions
         );
-        SharedStructs.Positon[] storage smallPool = (
-            isPriceDown ? longPositions : shortPositons
+        SharedStructs.Position[] storage smallPool = (
+            isPriceDown ? longPositions : shortPositions
         );
 
         for (uint256 i = 0; i < bigPool.length; i++) {
@@ -91,13 +91,13 @@ library PositionHelper {
     }
 
     function getRebalance(
-        bool isPriceMovment,
+        bool isPriceMovement,
         bool isPriceIncrease,
         uint256 minted,
         uint256 price
     ) public pure returns (SharedStructs.Rebalance memory) {
-        SharedStructs.PriceMovment direction = getPrirection(
-            isPriceMovment,
+        SharedStructs.PriceMovement direction = getPriceMovement(
+            isPriceMovement,
             isPriceIncrease
         );
 
@@ -110,7 +110,7 @@ library PositionHelper {
     }
 
     function calculateProfits(
-        SharedStructs.Positon memory position,
+        SharedStructs.Position memory position,
         uint256 amount,
         uint256 price
     ) public pure returns (uint256) {
@@ -122,23 +122,23 @@ library PositionHelper {
         return profits;
     }
 
-    function getPrirection(bool isPriceMovment, bool isPriceIncrease)
+    function getPriceMovement(bool isPriceMovement, bool isPriceIncrease)
         public
         pure
-        returns (SharedStructs.PriceMovment)
+        returns (SharedStructs.PriceMovement)
     {
-        if (isPriceMovment) {
+        if (isPriceMovement) {
             return
                 isPriceIncrease
-                    ? SharedStructs.PriceMovment.UP
-                    : SharedStructs.PriceMovment.DOWN;
+                    ? SharedStructs.PriceMovement.UP
+                    : SharedStructs.PriceMovement.DOWN;
         } else {
-            return SharedStructs.PriceMovment.STABLE;
+            return SharedStructs.PriceMovement.STABLE;
         }
     }
 
-    function getProtcolChipAdjustmentBalance(
-        SharedStructs.Positon memory position,
+    function getProtocolChipAdjustmentBalance(
+        SharedStructs.Position memory position,
         uint256 adjustment
     ) public pure returns (uint256) {
         if (adjustment < position.chipQuantity) {
@@ -148,12 +148,12 @@ library PositionHelper {
         }
     }
 
-    function getProtolChipAdjustment(
-        bool isMovmentWithPool,
+    function getProtocolChipAdjustment(
+        bool isMovementWithPool,
         uint256 priceChange,
         uint256 padding
     ) public pure returns (uint256) {
-        uint256 adjustments = isMovmentWithPool
+        uint256 adjustments = isMovementWithPool
             ? (priceChange + padding)
             : priceChange;
 

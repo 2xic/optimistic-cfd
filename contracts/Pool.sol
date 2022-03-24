@@ -15,23 +15,23 @@ import {RebalancePoolHelper} from "./helpers/RebalancePoolHelper.sol";
 import {MathHelper} from "./helpers/MathHelper.sol";
 
 contract Pool {
-    using PositionHelper for SharedStructs.Positon[];
-    using RebalancePoolHelper for SharedStructs.Positon[];
+    using PositionHelper for SharedStructs.Position[];
+    using RebalancePoolHelper for SharedStructs.Position[];
     using MathHelper for uint256;
 
-    SharedStructs.Positon[] public longPositions;
-    SharedStructs.Positon[] public shortPositons;
-    SharedStructs.PositionType public protcolPosition;
+    SharedStructs.Position[] public longPositions;
+    SharedStructs.Position[] public shortPositions;
+    SharedStructs.PositionType public protocolPosition;
 
     IPriceOracle private priceOracle;
     IERC20 private chipToken;
     EthLongCfd private longCfd;
     EthShortCfd private shortCfd;
-    Treasury private tresuary;
+    Treasury private treasury;
 
-    bool private isInitalized;
+    bool private isInitialized;
     uint256 private lastPrice;
-    uint16 private expontent;
+    uint16 private exponent;
     uint256 private fee;
 
     constructor(
@@ -39,16 +39,16 @@ contract Pool {
         address _chipToken,
         address _longTCfd,
         address _shortCfd,
-        address _tresuary,
+        address _treasury,
         uint256 _fee
     ) {
         priceOracle = IPriceOracle(_priceFeed);
         longCfd = EthLongCfd(_longTCfd);
         shortCfd = EthShortCfd(_shortCfd);
         chipToken = IERC20(_chipToken);
-        tresuary = Treasury(_tresuary);
-        expontent = 1000;
-        isInitalized = false;
+        treasury = Treasury(_treasury);
+        exponent = 1000;
+        isInitialized = false;
         fee = _fee;
     }
 
@@ -57,7 +57,7 @@ contract Pool {
         payable
         returns (bool)
     {
-        require(!isInitalized, "Init should only be called once");
+        require(!isInitialized, "Init should only be called once");
 
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
@@ -65,7 +65,7 @@ contract Pool {
         uint256 rawDeposited = amount - leftover;
         uint256 deposited = _subtractFee(rawDeposited);
         lastPrice = price;
-        isInitalized = true;
+        isInitialized = true;
 
         if (position == SharedStructs.PositionType.LONG) {
             require(
@@ -75,16 +75,16 @@ contract Pool {
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
-                deposited.increasePresiion(),
+                deposited.increasePrecision(),
                 msg.sender
             );
             _createPosition(
                 SharedStructs.PositionType.SHORT,
                 price,
-                deposited.increasePresiion(),
+                deposited.increasePrecision(),
                 address(this)
             );
-            protcolPosition = SharedStructs.PositionType.SHORT;
+            protocolPosition = SharedStructs.PositionType.SHORT;
         } else if (position == SharedStructs.PositionType.SHORT) {
             require(
                 chipToken.transferFrom(msg.sender, address(this), rawDeposited),
@@ -93,16 +93,16 @@ contract Pool {
             _createPosition(
                 SharedStructs.PositionType.SHORT,
                 price,
-                deposited.increasePresiion(),
+                deposited.increasePrecision(),
                 msg.sender
             );
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
-                deposited.increasePresiion(),
+                deposited.increasePrecision(),
                 address(this)
             );
-            protcolPosition = SharedStructs.PositionType.LONG;
+            protocolPosition = SharedStructs.PositionType.LONG;
         }
         return true;
     }
@@ -112,23 +112,23 @@ contract Pool {
         payable
         returns (bool)
     {
-        require(isInitalized, "call init before enter");
+        require(isInitialized, "call init before enter");
 
         uint256 price = priceOracle.getLatestPrice();
         uint256 leftover = amount % price;
         // TODO: I think this can be solved better if you just rescale the numbers
         uint256 deposited = _subtractFee(amount - leftover);
 
-        bool isOverwritingProtcol = position == protcolPosition;
+        bool isOverwritingProtocol = position == protocolPosition;
 
-        if (isOverwritingProtcol) {
+        if (isOverwritingProtocol) {
             _createPosition(
                 position,
                 price,
-                deposited.increasePresiion(),
+                deposited.increasePrecision(),
                 msg.sender
             );
-            _readjuceProtcolPosition(deposited, price);
+            _readjustProtocolPosition(deposited, price);
         } else {
             require(false, "not implemented");
         }
@@ -143,9 +143,9 @@ contract Pool {
             }
         }
 
-        for (uint256 i = 0; i < shortPositons.length; i++) {
-            if (shortPositons[i].owner == user) {
-                balance += shortPositons[i].chipQuantity;
+        for (uint256 i = 0; i < shortPositions.length; i++) {
+            if (shortPositions[i].owner == user) {
+                balance += shortPositions[i].chipQuantity;
             }
         }
 
@@ -154,27 +154,27 @@ contract Pool {
 
     function update() public payable returns (bool) {
         SharedStructs.Rebalance memory rebalance = rebalancePools();
-        bool priceMovedAgainstProtcolLong = (protcolPosition ==
+        bool priceMovedAgainstProtocolLong = (protocolPosition ==
             SharedStructs.PositionType.LONG &&
-            rebalance.direction == SharedStructs.PriceMovment.DOWN);
-        bool priceMovedAgainstProtcoShort = (protcolPosition ==
+            rebalance.direction == SharedStructs.PriceMovement.DOWN);
+        bool priceMovedAgainstProtocolShort = (protocolPosition ==
             SharedStructs.PositionType.SHORT &&
-            rebalance.direction == SharedStructs.PriceMovment.UP);
+            rebalance.direction == SharedStructs.PriceMovement.UP);
 
-        if (priceMovedAgainstProtcolLong) {
-            // protcol has to "mint" new tokens now.
+        if (priceMovedAgainstProtocolLong) {
+            // protocol has to "mint" new tokens now.
             // currently just "fake" mints, but this will be changed as new tests are implemented
             longPositions.push(
-                SharedStructs.Positon({
+                SharedStructs.Position({
                     entryChipQuantity: rebalance.minted,
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
                     owner: address(this)
                 })
             );
-        } else if (priceMovedAgainstProtcoShort) {
-            shortPositons.push(
-                SharedStructs.Positon({
+        } else if (priceMovedAgainstProtocolShort) {
+            shortPositions.push(
+                SharedStructs.Position({
                     entryChipQuantity: rebalance.minted,
                     entryPrice: rebalance.price,
                     chipQuantity: rebalance.minted,
@@ -202,27 +202,27 @@ contract Pool {
             RebalancePoolHelper.rebalancePools(
                 currentPrice,
                 oldPrice,
-                protcolPosition,
+                protocolPosition,
                 longPositions,
-                shortPositons
+                shortPositions
             );
     }
 
-    function getShorts() public view returns (SharedStructs.Positon[] memory) {
-        return shortPositons;
+    function getShorts() public view returns (SharedStructs.Position[] memory) {
+        return shortPositions;
     }
 
-    function getLongs() public view returns (SharedStructs.Positon[] memory) {
+    function getLongs() public view returns (SharedStructs.Position[] memory) {
         return longPositions;
     }
 
     function _subtractFee(uint256 amount) private view returns (uint256) {
         if (fee != 0) {
-            uint256 scaledFeeAmount = amount.increasePresiion() * fee;
+            uint256 scaledFeeAmount = amount.increasePrecision() * fee;
             uint256 normalizedFeeAmount = scaledFeeAmount / 10_000;
-            uint256 deposited = amount.increasePresiion() - normalizedFeeAmount;
+            uint256 deposited = amount.increasePrecision() - normalizedFeeAmount;
 
-            return deposited.noramlizeNumber();
+            return deposited.normalizeNumber();
         }
         return amount;
     }
@@ -233,8 +233,8 @@ contract Pool {
         uint256 deposited,
         address owner
     ) private returns (uint256) {
-        uint256 mintedTokens = deposited.noramlizeNumber() / price;
-        SharedStructs.Positon memory postion = SharedStructs.Positon({
+        uint256 mintedTokens = deposited.normalizeNumber() / price;
+        SharedStructs.Position memory newPosition = SharedStructs.Position({
             entryPrice: price,
             entryChipQuantity: deposited,
             chipQuantity: deposited,
@@ -243,59 +243,59 @@ contract Pool {
 
         if (position == SharedStructs.PositionType.LONG) {
             longCfd.exchange(mintedTokens, owner);
-            longPositions.push(postion);
+            longPositions.push(newPosition);
         } else if (position == SharedStructs.PositionType.SHORT) {
             shortCfd.exchange(mintedTokens, owner);
-            shortPositons.push(postion);
+            shortPositions.push(newPosition);
         }
         return 0;
     }
 
-    function _readjuceProtcolPosition(uint256 amount, uint256 price)
+    function _readjustProtocolPosition(uint256 amount, uint256 price)
         private
         returns (bool)
     {
-        bool isProtcolLong = protcolPosition == SharedStructs.PositionType.LONG;
-        SharedStructs.Positon[] storage protcolPositionsPool = (
-            isProtcolLong ? longPositions : shortPositons
+        bool isProtocolLong = protocolPosition == SharedStructs.PositionType.LONG;
+        SharedStructs.Position[] storage protocolPositionsPool = (
+            isProtocolLong ? longPositions : shortPositions
         );
 
-        for (uint256 i = 0; i < protcolPositionsPool.length; i++) {
-            bool isProtcol = protcolPositionsPool[i].owner == address(this);
+        for (uint256 i = 0; i < protocolPositionsPool.length; i++) {
+            bool isProtocol = protocolPositionsPool[i].owner == address(this);
 
-            if (isProtcol) {
-                protcolPositionsPool[i] = RebalancePoolHelper
-                    .rebalanceProtocolExposoure(
-                        protcolPositionsPool[i],
+            if (isProtocol) {
+                protocolPositionsPool[i] = RebalancePoolHelper
+                    .rebalanceProtocolExposure(
+                        protocolPositionsPool[i],
                         amount,
                         price,
-                        amount.increasePresiion(),
+                        amount.increasePrecision(),
                         chipToken,
-                        address(tresuary),
-                        isProtcolLong
+                        address(treasury),
+                    isProtocolLong
                     );
 
-                if (protcolPositionsPool[i].chipQuantity == 0) {
-                    protcolPositionsPool.remove(i);
+                if (protocolPositionsPool[i].chipQuantity == 0) {
+                    protocolPositionsPool.remove(i);
                 }
             }
         }
 
         uint256 poolBalance = PositionHelper.getPoolBalance(
-            SharedStructs.PriceMovment.DOWN,
+            SharedStructs.PriceMovement.DOWN,
             longPositions,
-            shortPositons
+            shortPositions
         );
-        bool protcolHasToCreatePostiion = 0 < poolBalance;
+        bool protocolHasToCreatePosition = 0 < poolBalance;
 
-        if (protcolHasToCreatePostiion && !isProtcolLong) {
+        if (protocolHasToCreatePosition && !isProtocolLong) {
             _createPosition(
                 SharedStructs.PositionType.LONG,
                 price,
                 poolBalance,
                 address(this)
             );
-        } else if (protcolHasToCreatePostiion && isProtcolLong) {
+        } else if (protocolHasToCreatePosition && isProtocolLong) {
             require(false, "not implemented");
         }
 

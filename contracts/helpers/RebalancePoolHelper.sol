@@ -7,14 +7,14 @@ import {PositionHelper} from "./PositionHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 library RebalancePoolHelper {
-    using PositionHelper for SharedStructs.Positon[];
+    using PositionHelper for SharedStructs.Position[];
 
     function rebalancePools(
         uint256 price,
         uint256 lastPrice,
-        SharedStructs.PositionType protcolPosition,
-        SharedStructs.Positon[] storage longPositions,
-        SharedStructs.Positon[] storage shortPositons
+        SharedStructs.PositionType protocolPosition,
+        SharedStructs.Position[] storage longPositions,
+        SharedStructs.Position[] storage shortPositions
     ) public returns (SharedStructs.Rebalance memory) {
         bool isPriceIncrease = lastPrice < price;
         bool isPriceDecrease = lastPrice > price;
@@ -25,48 +25,48 @@ library RebalancePoolHelper {
             uint256 delta = ((price * 100 - lastPrice * 100) / lastPrice) * 100;
 
             minted = _positionChipAdjustments(
-                protcolPosition,
+                protocolPosition,
                 longPositions,
-                shortPositons,
+                shortPositions,
                 delta,
-                SharedStructs.PriceMovment.UP
+                SharedStructs.PriceMovement.UP
             );
         } else if (isPriceDecrease) {
             uint256 delta = ((lastPrice * 100 - price * 100) / lastPrice) * 100;
 
             minted = _positionChipAdjustments(
-                protcolPosition,
+                protocolPosition,
                 longPositions,
-                shortPositons,
+                shortPositions,
                 delta,
-                SharedStructs.PriceMovment.DOWN
+                SharedStructs.PriceMovement.DOWN
             );
         }
 
-        bool isPriceMovment = isPriceIncrease || isPriceDecrease;
+        bool isPriceMovement = isPriceIncrease || isPriceDecrease;
 
         return
             PositionHelper.getRebalance(
-                isPriceMovment,
+                isPriceMovement,
                 isPriceIncrease,
                 minted,
                 price
             );
     }
 
-    function rebalanceProtocolExposoure(
-        SharedStructs.Positon memory position,
+    function rebalanceProtocolExposure(
+        SharedStructs.Position memory position,
         uint256 amount,
         uint256 price,
         uint256 adjustment,
         IERC20 chipToken,
-        address tresuaryAddress,
-        bool isProtcolLong
-    ) public returns (SharedStructs.Positon memory) {
+        address treasuryAddress,
+        bool isProtocolLong
+    ) public returns (SharedStructs.Position memory) {
         if (price == position.entryPrice) {
             position.chipQuantity -= adjustment;
         } else if (amount <= position.entryChipQuantity) {
-            bool hasShortProfits = !isProtcolLong &&
+            bool hasShortProfits = !isProtocolLong &&
                 price < position.entryPrice;
 
             if (hasShortProfits) {
@@ -76,10 +76,10 @@ library RebalancePoolHelper {
                     price
                 );
                 chipToken.approve(address(this), profits);
-                chipToken.transferFrom(address(this), tresuaryAddress, profits);
+                chipToken.transferFrom(address(this), treasuryAddress, profits);
 
                 uint256 newBalance = PositionHelper
-                    .getProtcolChipAdjustmentBalance(position, adjustment);
+                    .getProtocolChipAdjustmentBalance(position, adjustment);
                 position.chipQuantity = newBalance;
                 position.entryChipQuantity = newBalance;
             } else {
@@ -91,23 +91,23 @@ library RebalancePoolHelper {
     }
 
     function _positionChipAdjustments(
-        SharedStructs.PositionType protcolPosition,
-        SharedStructs.Positon[] storage longPositions,
-        SharedStructs.Positon[] storage shortPositons,
+        SharedStructs.PositionType protocolPosition,
+        SharedStructs.Position[] storage longPositions,
+        SharedStructs.Position[] storage shortPositions,
         uint256 priceChange,
-        SharedStructs.PriceMovment direction
+        SharedStructs.PriceMovement direction
     ) public returns (uint256) {
         PositionHelper.moveChipBetweenPositions(
             priceChange,
-            protcolPosition,
+            protocolPosition,
             direction,
             longPositions,
-            shortPositons
+            shortPositions
         );
         uint256 poolBalance = PositionHelper.getPoolBalance(
             direction,
             longPositions,
-            shortPositons
+            shortPositions
         );
         return poolBalance;
     }
