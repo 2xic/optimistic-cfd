@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 library SharedStructs {
-    struct Positon {
+    struct Position {
         uint256 entryPrice;
         uint256 entryChipQuantity;
         uint256 chipQuantity;
@@ -10,7 +10,7 @@ library SharedStructs {
     }
 
     struct Rebalance {
-        PriceMovment direction;
+        PriceMovement direction;
         uint256 minted;
         uint256 price;
     }
@@ -18,10 +18,10 @@ library SharedStructs {
     enum PositionType {
         LONG,
         SHORT,
-        BYSTANDARDER
+        BYSTANDER
     }
 
-    enum PriceMovment {
+    enum PriceMovement {
         DOWN,
         UP,
         STABLE
