@@ -36,7 +36,7 @@ describe('Chip', function () {
     expect(balance).to.equal(0);
   });
 
-  it('Should be possible to exchange $c for $cfdlong', async () => {
+  it('Should be possible to exchange $c for $cfdLong', async () => {
     const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -69,7 +69,7 @@ describe('Chip', function () {
     expect(shortCfdTokenBalance).to.equal(15);
   });
 
-  it('Should be possible to exchange $c for $cfdshort', async () => {
+  it('Should be possible to exchange $c for $cfdShort', async () => {
     const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);

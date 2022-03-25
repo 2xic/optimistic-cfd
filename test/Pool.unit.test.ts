@@ -1,13 +1,14 @@
-import { expect } from "chai";
-import { deployContract } from "./helpers/deployContract";
-import { getAddressSigner } from "./helpers/getAddressSigner";
-import { sumChipQuantity } from "./helpers/sumPositions";
-import { Position } from "./types/Position";
-import forEach from "mocha-each";
-import { mintTokenToPool } from "./helpers/mintChipTokensToPool";
+import { expect } from 'chai';
+import { deployContract } from './helpers/deployContract';
+import { getAddressSigner } from './helpers/getAddressSigner';
+import { sumChipQuantity } from './helpers/sumPositions';
+import { Position } from './types/Position';
+import forEach from 'mocha-each';
+import { mintTokenToPool } from './helpers/mintChipTokensToPool';
+import { getPoolState } from './helpers/getPoolState';
 
-describe("Pool", () => {
-  it("should move $c from the short pool to the long pool on price increase", async () => {
+describe('Pool', () => {
+  it('should move $c from the short pool to the long pool on price increase', async () => {
     const {
       chipToken,
       coreContract,
@@ -48,11 +49,14 @@ describe("Pool", () => {
 
     await pool.connect(coreContract.signer).rebalancePools();
 
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(25000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+
     expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
     expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
   });
 
-  it("should move $c from the long pool to the short pool on price decrease", async () => {
+  it('should move $c from the long pool to the short pool on price decrease', async () => {
     const {
       chipToken,
       coreContract,
@@ -97,7 +101,7 @@ describe("Pool", () => {
     expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
-  it("should not be possible to call the init function multiple times", async () => {
+  it('should not be possible to call the init function multiple times', async () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -113,11 +117,11 @@ describe("Pool", () => {
 
     await expect(
       pool.connect(coreContract.signer).init(50, Position.SHORT)
-    ).to.be.revertedWith("Init should only be called once");
+    ).to.be.revertedWith('Init should only be called once');
   });
 
   forEach([[Position.SHORT], [Position.LONG]]).it(
-    "should correctly adjust the pools after a price move against the protocol position",
+    'should correctly adjust the pools after a price move against the protocol position',
     async (userPosition) => {
       const { chipToken, coreContract, pool, priceConsumer } =
         await deployContract();
@@ -153,7 +157,7 @@ describe("Pool", () => {
     }
   );
 
-  it("should keep the pools balanced after priced move with the protocol", async () => {
+  it('should keep the pools balanced after priced move with the protocol', async () => {
     const userPosition = Position.LONG;
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
@@ -188,7 +192,7 @@ describe("Pool", () => {
     expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
-  it("should burn minted $c if fresh users join the pool", async () => {
+  it('should burn minted $c if fresh users join the pool', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -215,7 +219,7 @@ describe("Pool", () => {
     expect((await pool.getLongs()).length).to.equal(1);
   });
 
-  it("should not be possible to call enter before init", async () => {
+  it('should not be possible to call enter before init', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -229,10 +233,10 @@ describe("Pool", () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await expect(
       pool.connect(randomAddress).enter(50, Position.SHORT)
-    ).to.be.revertedWith("call init before enter");
+    ).to.be.revertedWith('call init before enter');
   });
 
-  it("should correctly calculate the user balance in a 1-1 scenario (user against protocol)", async () => {
+  it('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -266,7 +270,7 @@ describe("Pool", () => {
     expect(userBalance).to.equal(75000);
   });
 
-  it("should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)", async () => {
+  it('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -311,7 +315,7 @@ describe("Pool", () => {
     expect(randomAddressBalance).to.equal(25000);
   });
 
-  it("should correctly re-balance the pools after a price has changed, and new users enter pool", async () => {
+  it('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -351,7 +355,7 @@ describe("Pool", () => {
     expect((await pool.getLongs()).length).to.equal(2);
   });
 
-  it("protocol should only burn the principal, and send the rest to the treasury", async () => {
+  it('protocol should only burn the principal, and send the rest to the treasury', async () => {
     const {
       chipToken,
       randomAddress,
@@ -381,7 +385,7 @@ describe("Pool", () => {
     expect(await chipToken.balanceOf(treasury.address)).to.equal(24);
   });
 
-  it("should take an 0.3% fee when entering an synthetic position", async () => {
+  it('should take an 0.3% fee when entering an synthetic position', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract({
         fee: 0.03 * 100_00,
@@ -403,40 +407,40 @@ describe("Pool", () => {
     expect(sumChipQuantity(await pool.getLongs())).to.equal(48000);
   });
 
-  it.skip("should take an 0.3% fee on when exiting an synthetic position", () => {
-    expect.fail("Not implemented");
+  it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {
+    expect.fail('Not implemented');
   });
 
-  it.skip("should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol", () => {
+  it.skip('should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol', () => {
     // i.e protocol is long with 50 $c, and a user goes long with 75$, then the protocol has to go short with 25$
-    expect.fail("not implemented");
+    expect.fail('not implemented');
   });
 
-  it.skip("should correctly readjust the position of the protocol if a new user enters against the protocol", () => {
-    expect.fail("not implemented");
+  it.skip('should correctly readjust the position of the protocol if a new user enters against the protocol', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should update the ownership users has of the long pool on price increase", () => {
-    expect.fail("not implemented");
+  it.skip('should update the ownership users has of the long pool on price increase', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should update the ownership users has of the short pool on price increase", () => {
-    expect.fail("not implemented");
+  it.skip('should update the ownership users has of the short pool on price increase', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should update the ownership users has of the short pool on price decrease", () => {
-    expect.fail("not implemented");
+  it.skip('should update the ownership users has of the short pool on price decrease', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should update the ownership users has of the long pool on price decrease", () => {
-    expect.fail("not implemented");
+  it.skip('should update the ownership users has of the long pool on price decrease', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should credit an disproportional amount of the less popular side when price moves in their favour", () => {
-    expect.fail("not implemented");
+  it.skip('should credit an disproportional amount of the less popular side when price moves in their favour', () => {
+    expect.fail('not implemented');
   });
 
-  it.skip("should not be possible for users to frontrun oracle updates", () => {
-    expect.fail("not implemented");
+  it.skip('should not be possible for users to frontrun oracle updates', () => {
+    expect.fail('not implemented');
   });
 });

@@ -12,16 +12,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SharedStructs} from "./structs/SharedStructs.sol";
 import {PositionHelper} from "./helpers/PositionHelper.sol";
 import {RebalancePoolHelper} from "./helpers/RebalancePoolHelper.sol";
+import {SimpleRebalanceHelper} from "./helpers/SimpleRebalanceHelper.sol";
 import {MathHelper} from "./helpers/MathHelper.sol";
 
 contract Pool {
     using PositionHelper for SharedStructs.Position[];
     using RebalancePoolHelper for SharedStructs.Position[];
     using MathHelper for uint256;
+    using SimpleRebalanceHelper for SharedStructs.PoolState;
 
-    SharedStructs.Position[] public longPositions;
-    SharedStructs.Position[] public shortPositions;
-    SharedStructs.PositionType public protocolPosition;
+    SharedStructs.Position[] private longPositions;
+    SharedStructs.Position[] private shortPositions;
+    SharedStructs.PositionType private protocolPosition;
+    SharedStructs.PoolState private poolState;
 
     IPriceOracle private priceOracle;
     IERC20 private chipToken;
@@ -66,6 +69,10 @@ contract Pool {
         uint256 deposited = _subtractFee(rawDeposited);
         lastPrice = price;
         isInitialized = true;
+
+        poolState.price = price;
+        poolState.longRedeemPrice = price;
+        poolState.shortRedeemPrice = price;
 
         if (position == SharedStructs.PositionType.LONG) {
             require(
@@ -136,6 +143,7 @@ contract Pool {
     }
 
     function getUserBalance(address user) public view returns (uint256) {
+        // TODO : Update this logic to the new pool design
         uint256 balance = 0;
         for (uint256 i = 0; i < longPositions.length; i++) {
             if (longPositions[i].owner == user) {
@@ -196,6 +204,9 @@ contract Pool {
         uint256 currentPrice = price;
         uint256 oldPrice = lastPrice;
 
+
+        poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+
         lastPrice = price;
 
         return
@@ -216,11 +227,21 @@ contract Pool {
         return longPositions;
     }
 
+    function getPoolState()
+        public
+        view
+        returns (SharedStructs.PoolState memory)
+    {
+        return poolState;
+    }
+
     function _subtractFee(uint256 amount) private view returns (uint256) {
         if (fee != 0) {
             uint256 scaledFeeAmount = amount.increasePrecision() * fee;
+            // TODO: Constants like thesse should be abstracted away
             uint256 normalizedFeeAmount = scaledFeeAmount / 10_000;
-            uint256 deposited = amount.increasePrecision() - normalizedFeeAmount;
+            uint256 deposited = amount.increasePrecision() -
+                normalizedFeeAmount;
 
             return deposited.normalizeNumber();
         }
@@ -244,9 +265,11 @@ contract Pool {
         if (position == SharedStructs.PositionType.LONG) {
             longCfd.exchange(mintedTokens, owner);
             longPositions.push(newPosition);
+            poolState.longPoolSize += deposited;
         } else if (position == SharedStructs.PositionType.SHORT) {
             shortCfd.exchange(mintedTokens, owner);
             shortPositions.push(newPosition);
+            poolState.shortPoolSize += deposited;
         }
         return 0;
     }
@@ -255,7 +278,8 @@ contract Pool {
         private
         returns (bool)
     {
-        bool isProtocolLong = protocolPosition == SharedStructs.PositionType.LONG;
+        bool isProtocolLong = protocolPosition ==
+            SharedStructs.PositionType.LONG;
         SharedStructs.Position[] storage protocolPositionsPool = (
             isProtocolLong ? longPositions : shortPositions
         );
@@ -272,7 +296,7 @@ contract Pool {
                         amount.increasePrecision(),
                         chipToken,
                         address(treasury),
-                    isProtocolLong
+                        isProtocolLong
                     );
 
                 if (protocolPositionsPool[i].chipQuantity == 0) {

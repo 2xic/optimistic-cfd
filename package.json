@@ -1,7 +1,7 @@
 {
   "scripts": {
     "test": "hardhat test",
-    "lint": " npx eslint --fix --quiet ./**/*.ts"
+    "lint": " npx eslint . --fix --quiet --ext .ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",

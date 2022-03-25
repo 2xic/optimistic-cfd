@@ -1,14 +1,14 @@
-import { BytesLike } from "@ethersproject/bytes";
-import { ethers } from "hardhat";
+import { BytesLike } from 'ethers';
+import { ethers } from 'hardhat';
 
 export function decodeBoolAbi({ data }: { data: BytesLike }): boolean {
   const [response] = ethers.utils.defaultAbiCoder.decode(
-    ["bool"],
+    ['bool'],
     ethers.utils.hexDataSlice(data, 4)
   );
-  if (typeof response === "boolean") {
+  if (typeof response === 'boolean') {
     return response;
   } else {
-    throw new Error("Expected boolean ");
+    throw new Error('Expected boolean ');
   }
 }

@@ -9,6 +9,17 @@ library SharedStructs {
         address owner;
     }
 
+    struct PoolState {
+        uint256 longSupply;
+        uint256 shortSupply;
+        uint256 longPoolSize;
+        uint256 shortPoolSize;
+        uint256 price;
+        uint256 longRedeemPrice;
+        uint256 shortRedeemPrice;
+        PositionType poolPosition;
+    }
+
     struct Rebalance {
         PriceMovement direction;
         uint256 minted;
@@ -17,8 +28,7 @@ library SharedStructs {
 
     enum PositionType {
         LONG,
-        SHORT,
-        BYSTANDER
+        SHORT
     }
 
     enum PriceMovement {

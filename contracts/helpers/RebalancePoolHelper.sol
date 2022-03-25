@@ -6,6 +6,10 @@ import "hardhat/console.sol";
 import {PositionHelper} from "./PositionHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/* 
+    Deprecated, 
+    SimpleRebalanceHelper.sol will replace this file.
+*/
 library RebalancePoolHelper {
     using PositionHelper for SharedStructs.Position[];
 
