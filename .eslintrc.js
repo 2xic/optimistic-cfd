@@ -5,7 +5,7 @@ module.exports = {
     mocha: true,
     node: true,
   },
-  plugins: ["@typescript-eslint"],
+  plugins: ["@typescript-eslint", "prettier"],
   extends: [
     "standard",
     "plugin:prettier/recommended",
@@ -16,6 +16,8 @@ module.exports = {
     ecmaVersion: 12,
   },
   rules: {
+    "prettier/prettier": "error",
+    "node/no-missing-import": 0,
     "node/no-unsupported-features/es-syntax": [
       "error",
       { ignores: ["modules"] },

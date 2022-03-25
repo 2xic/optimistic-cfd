@@ -1,11 +1,11 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { decodeBoolAbi } from "./helpers/decodeAbi";
-import { deployContract } from "./helpers/deployContract";
-import { getAddressSigner } from "./helpers/getAddressSigner";
+import { expect } from 'chai';
+import { ethers } from 'hardhat';
+import { decodeBoolAbi } from './helpers/decodeAbi';
+import { deployContract } from './helpers/deployContract';
+import { getAddressSigner } from './helpers/getAddressSigner';
 
-describe("Chip", function () {
-  it("Should be possible to mint new tokens", async function () {
+describe('Chip', function () {
+  it('Should be possible to mint new tokens', async function () {
     const { chipToken, coreContract } = await deployContract();
     await chipToken.mint(100);
 
@@ -15,7 +15,7 @@ describe("Chip", function () {
     expect(balance).to.equal(100);
   });
 
-  it("Should be possible to burn new tokens", async function () {
+  it('Should be possible to burn new tokens', async function () {
     const { chipToken, coreContract } = await deployContract();
     await chipToken.mint(100);
     await expect(
@@ -36,7 +36,7 @@ describe("Chip", function () {
     expect(balance).to.equal(0);
   });
 
-  it("Should be possible to exchange $c for $cfdlong", async () => {
+  it('Should be possible to exchange $c for $cfdlong', async () => {
     const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -69,7 +69,7 @@ describe("Chip", function () {
     expect(shortCfdTokenBalance).to.equal(15);
   });
 
-  it("Should be possible to exchange $c for $cfdshort", async () => {
+  it('Should be possible to exchange $c for $cfdshort', async () => {
     const { chipToken, coreContract, pool, longCfdTOken, shortCfdToken } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -102,28 +102,28 @@ describe("Chip", function () {
     expect(shortCfdTokenBalance).to.equal(15);
   });
 
-  it("only be possible for the owner contract to mint tokens", async () => {
+  it('only be possible for the owner contract to mint tokens', async () => {
     const [owner, randomAddress] = await ethers.getSigners();
 
-    const ChipTokenContract = await ethers.getContractFactory("Chip");
+    const ChipTokenContract = await ethers.getContractFactory('Chip');
     const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
 
     await expect(chipToken.connect(randomAddress).mint(100)).to.be.revertedWith(
-      "Only owner can mint tokens"
+      'Only owner can mint tokens'
     );
     await chipToken.connect(owner).mint(100);
   });
 
-  it("only be possible for the owner contract to burn tokens", async () => {
+  it('only be possible for the owner contract to burn tokens', async () => {
     const [owner, randomAddress] = await ethers.getSigners();
 
-    const ChipTokenContract = await ethers.getContractFactory("Chip");
+    const ChipTokenContract = await ethers.getContractFactory('Chip');
     const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
 
     await chipToken.connect(owner).mint(100);
 
     await expect(chipToken.connect(randomAddress).burn(100)).to.be.revertedWith(
-      "Only owner can burn tokens"
+      'Only owner can burn tokens'
     );
 
     chipToken.connect(owner).burn(100);

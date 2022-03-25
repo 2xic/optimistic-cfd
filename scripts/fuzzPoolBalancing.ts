@@ -1,10 +1,10 @@
-import { deployContract } from "../test/helpers/deployContract";
-import { mintTokenToPool } from "../test/helpers/mintChipTokensToPool";
+import { deployContract } from '../test/helpers/deployContract';
+import { mintTokenToPool } from '../test/helpers/mintChipTokensToPool';
 
-import { expect } from "chai";
-import { getAddressSigner } from "../test/helpers/getAddressSigner";
-import { sumChipQuantity } from "../test/helpers/sumPositions";
-import { Position } from "../test/types/Position";
+import { expect } from 'chai';
+import { getAddressSigner } from '../test/helpers/getAddressSigner';
+import { sumChipQuantity } from '../test/helpers/sumPositions';
+import { Position } from '../test/types/Position';
 
 async function main() {
   let rounds = 0;

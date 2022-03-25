@@ -8,6 +8,6 @@
     "rootDirs": ["./src", "./scripts", "./test"],
     "declaration": true
   },
-  "include": ["./scripts", "./test", "./typechain"],
+  "include": ["./scripts", "./scripts", "./test", "./typechain"],
   "files": ["./hardhat.config.ts"]
 }
