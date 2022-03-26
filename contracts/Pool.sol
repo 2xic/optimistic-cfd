@@ -16,14 +16,10 @@ import {SimpleRebalanceHelper} from './helpers/SimpleRebalanceHelper.sol';
 import {MathHelper} from './helpers/MathHelper.sol';
 
 contract Pool {
-	using PositionHelper for SharedStructs.Position[];
 	using RebalancePoolHelper for SharedStructs.Position[];
 	using MathHelper for uint256;
 	using SimpleRebalanceHelper for SharedStructs.PoolState;
 
-	SharedStructs.Position[] private longPositions;
-	SharedStructs.Position[] private shortPositions;
-	SharedStructs.PositionType private protocolPosition;
 	SharedStructs.PoolState private poolState;
 
 	IPriceOracle private priceOracle;
@@ -32,8 +28,9 @@ contract Pool {
 	EthShortCfd private shortCfd;
 	Treasury private treasury;
 
-	bool private isInitialized;
+/*	bool private isInitialized;
 	uint256 private lastPrice;
+*/
 	uint16 private exponent;
 	uint256 private fee;
 
@@ -51,7 +48,7 @@ contract Pool {
 		chipToken = IERC20(_chipToken);
 		treasury = Treasury(_treasury);
 		exponent = 1000;
-		isInitialized = false;
+		poolState.isInitialized = false;
 		fee = _fee;
 	}
 
@@ -60,19 +57,18 @@ contract Pool {
 		payable
 		returns (bool)
 	{
-		require(!isInitialized, 'Init should only be called once');
+		require(!poolState.isInitialized, 'Init should only be called once');
 
 		uint256 price = priceOracle.getLatestPrice();
 		uint256 leftover = amount % price;
 		// TODO: I think this can be solved better if you just rescale the numbers
 		uint256 rawDeposited = amount - leftover;
 		uint256 deposited = _subtractFee(rawDeposited);
-		lastPrice = price;
-		isInitialized = true;
 
 		poolState.price = price;
 		poolState.longRedeemPrice = price;
 		poolState.shortRedeemPrice = price;
+		poolState.isInitialized = true;
 
 		if (position == SharedStructs.PositionType.LONG) {
 			require(
@@ -91,10 +87,6 @@ contract Pool {
 				deposited.increasePrecision(),
 				address(this)
 			);
-			protocolPosition = SharedStructs.PositionType.SHORT;
-
-            poolState.protocolState.size = deposited;
-            poolState.protocolState.position = SharedStructs.PositionType.SHORT;
 		} else if (position == SharedStructs.PositionType.SHORT) {
 			require(
 				chipToken.transferFrom(msg.sender, address(this), rawDeposited),
@@ -112,10 +104,6 @@ contract Pool {
 				deposited.increasePrecision(),
 				address(this)
 			);
-			protocolPosition = SharedStructs.PositionType.LONG;
-
-            poolState.protocolState.size = deposited;
-            poolState.protocolState.position = SharedStructs.PositionType.LONG;
 		}
 		return true;
 	}
@@ -125,129 +113,37 @@ contract Pool {
 		payable
 		returns (bool)
 	{
-		require(isInitialized, 'call init before enter');
+		require(poolState.isInitialized, 'call init before enter');
 
 		uint256 price = priceOracle.getLatestPrice();
 		uint256 leftover = amount % price;
 		// TODO: I think this can be solved better if you just rescale the numbers
 		uint256 deposited = _subtractFee(amount - leftover);
 
-		bool isOverwritingProtocol = position == protocolPosition;
-
-		if (isOverwritingProtocol) {
-			_createPosition(
-				position,
-				price,
-				deposited.increasePrecision(),
-				msg.sender
-			);
-			_readjustProtocolPosition(deposited, price);
-		} else {
-			require(false, 'not implemented');
-		}
+		require(false, 'not implemented');
 		return true;
 	}
 
 	function getUserBalance(address user) public view returns (uint256) {
-		// TODO : Update this logic to the new pool design
-		uint256 balance = 0;
-		for (uint256 i = 0; i < longPositions.length; i++) {
-			if (longPositions[i].owner == user) {
-				balance += longPositions[i].chipQuantity;
-			}
-		}
-
-		for (uint256 i = 0; i < shortPositions.length; i++) {
-			if (shortPositions[i].owner == user) {
-				balance += shortPositions[i].chipQuantity;
-			}
-		}
-
-		return balance;
+		require(false, 'not implemented');
 	}
 
 	function update() public payable returns (bool) {
-        uint256 price = priceOracle.getLatestPrice();
-        poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
-        poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
-
-        bool updated = _oldUpdateCode();
-        return updated;
-	}
-
-    function _oldUpdateCode() private returns (bool) {
-		SharedStructs.Rebalance memory rebalance = rebalancePools();
-		bool priceMovedAgainstProtocolLong = (protocolPosition ==
-			SharedStructs.PositionType.LONG &&
-			rebalance.direction == SharedStructs.PriceMovement.DOWN);
-		bool priceMovedAgainstProtocolShort = (protocolPosition ==
-			SharedStructs.PositionType.SHORT &&
-			rebalance.direction == SharedStructs.PriceMovement.UP);
-
-		if (priceMovedAgainstProtocolLong) {
-			// protocol has to "mint" new tokens now.
-			// currently just "fake" mints, but this will be changed as new tests are implemented
-			longPositions.push(
-				SharedStructs.Position({
-					entryChipQuantity: rebalance.minted,
-					entryPrice: rebalance.price,
-					chipQuantity: rebalance.minted,
-					owner: address(this)
-				})
-			);
-		} else if (priceMovedAgainstProtocolShort) {
-			shortPositions.push(
-				SharedStructs.Position({
-					entryChipQuantity: rebalance.minted,
-					entryPrice: rebalance.price,
-					chipQuantity: rebalance.minted,
-					owner: address(this)
-				})
-			);
-		}
-
-		return true;
-
-    }
-
-	function rebalancePools()
-		public
-		payable
-		returns (SharedStructs.Rebalance memory)
-	{
 		uint256 price = priceOracle.getLatestPrice();
 
-		uint256 currentPrice = price;
-		uint256 oldPrice = lastPrice;
+		//        poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+		rebalancePools();
+		poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
 
-//		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+		poolState.price = price;
 
-		lastPrice = price;
-
-		return
-			RebalancePoolHelper.rebalancePools(
-				currentPrice,
-				oldPrice,
-				protocolPosition,
-				longPositions,
-				shortPositions
-			);
+		return true;
 	}
 
-	function getShorts() public view returns (SharedStructs.Position[] memory) {
-		return shortPositions;
-	}
-
-	function getLongs() public view returns (SharedStructs.Position[] memory) {
-		return longPositions;
-	}
-
-	function getPoolState()
-		public
-		view
-		returns (SharedStructs.PoolState memory)
-	{
-		return poolState;
+	function rebalancePools() public payable returns (bool) {
+		uint256 price = priceOracle.getLatestPrice();
+		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+		return true;
 	}
 
 	function _subtractFee(uint256 amount) private view returns (uint256) {
@@ -263,6 +159,14 @@ contract Pool {
 		return amount;
 	}
 
+	function getPoolState()
+		public
+		view
+		returns (SharedStructs.PoolState memory)
+	{
+		return poolState;
+	}
+
 	function _createPosition(
 		SharedStructs.PositionType position,
 		uint256 price,
@@ -270,74 +174,20 @@ contract Pool {
 		address owner
 	) private returns (uint256) {
 		uint256 mintedTokens = deposited.normalizeNumber() / price;
-		SharedStructs.Position memory newPosition = SharedStructs.Position({
-			entryPrice: price,
-			entryChipQuantity: deposited,
-			chipQuantity: deposited,
-			owner: owner
-		});
 
 		if (position == SharedStructs.PositionType.LONG) {
 			longCfd.exchange(mintedTokens, owner);
-			longPositions.push(newPosition);
 			poolState.longPoolSize += deposited;
 		} else if (position == SharedStructs.PositionType.SHORT) {
 			shortCfd.exchange(mintedTokens, owner);
-			shortPositions.push(newPosition);
 			poolState.shortPoolSize += deposited;
 		}
+
+		if (owner == address(this)) {
+			poolState.protocolState.size += deposited;
+			poolState.protocolState.position = position;
+		}
+
 		return 0;
-	}
-
-	function _readjustProtocolPosition(uint256 amount, uint256 price)
-		private
-		returns (bool)
-	{
-		bool isProtocolLong = protocolPosition ==
-			SharedStructs.PositionType.LONG;
-		SharedStructs.Position[] storage protocolPositionsPool = (
-			isProtocolLong ? longPositions : shortPositions
-		);
-
-		for (uint256 i = 0; i < protocolPositionsPool.length; i++) {
-			bool isProtocol = protocolPositionsPool[i].owner == address(this);
-
-			if (isProtocol) {
-				protocolPositionsPool[i] = RebalancePoolHelper
-					.rebalanceProtocolExposure(
-						protocolPositionsPool[i],
-						amount,
-						price,
-						amount.increasePrecision(),
-						chipToken,
-						address(treasury),
-						isProtocolLong
-					);
-
-				if (protocolPositionsPool[i].chipQuantity == 0) {
-					protocolPositionsPool.remove(i);
-				}
-			}
-		}
-
-		uint256 poolBalance = PositionHelper.getPoolBalance(
-			SharedStructs.PriceMovement.DOWN,
-			longPositions,
-			shortPositions
-		);
-		bool protocolHasToCreatePosition = 0 < poolBalance;
-
-		if (protocolHasToCreatePosition && !isProtocolLong) {
-			_createPosition(
-				SharedStructs.PositionType.LONG,
-				price,
-				poolBalance,
-				address(this)
-			);
-		} else if (protocolHasToCreatePosition && isProtocolLong) {
-			require(false, 'not implemented');
-		}
-
-		return true;
 	}
 }

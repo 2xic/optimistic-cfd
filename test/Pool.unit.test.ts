@@ -41,8 +41,8 @@ describe('Pool', () => {
     );
     expect(shortCfdTokenBalance).to.equal(5);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
     // 50% price increase
     await priceConsumer.connect(coreContract.signer).setPrice(15);
@@ -51,9 +51,6 @@ describe('Pool', () => {
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(25000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
-
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
   });
 
   it('should move $c from the long pool to the short pool on price decrease', async () => {
@@ -89,8 +86,6 @@ describe('Pool', () => {
     );
     expect(shortCfdTokenBalance).to.equal(5);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
@@ -101,12 +96,9 @@ describe('Pool', () => {
 
     expect((await getPoolState(pool)).longPoolSize).to.eq(25000);
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
-
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
   });
 
-  it('should not be possible to call the init function multiple times', async () => {
+  it.skip('should not be possible to call the init function multiple times', async () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -125,7 +117,7 @@ describe('Pool', () => {
     ).to.be.revertedWith('Init should only be called once');
   });
 
-  forEach([[Position.SHORT], [Position.LONG]]).it.only(
+  forEach([[Position.SHORT], [Position.LONG]]).it(
     'should correctly adjust the pools after a price move against the protocol position',
     async (userPosition) => {
       const { chipToken, coreContract, pool, priceConsumer } =
@@ -146,9 +138,6 @@ describe('Pool', () => {
       );
       expect(updatedCoreContractBalance).to.equal(50);
 
-      expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-      expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
-
       expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
       expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
@@ -162,13 +151,10 @@ describe('Pool', () => {
 
       expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
       expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
-
-      expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
-      expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
     }
   );
 
-  it('should keep the pools balanced after priced move with the protocol', async () => {
+  it.skip('should keep the pools balanced after priced move with the protocol', async () => {
     const userPosition = Position.LONG;
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
@@ -183,27 +169,26 @@ describe('Pool', () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, userPosition);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
     // Protocol will be short, and will therefore "burn" the outstanding
-
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(coreContract.signer).update();
 
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(25000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(25000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(25000);
 
     await priceConsumer.connect(coreContract.signer).setPrice(15);
 
     await pool.connect(coreContract.signer).update();
 
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
   });
 
-  it('should burn minted $c if fresh users join the pool', async () => {
+  it.skip('should burn minted $c if fresh users join the pool', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -223,14 +208,13 @@ describe('Pool', () => {
     );
     expect(updatedCoreContractBalance).to.equal(50);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
-    expect((await pool.getShorts()).length).to.equal(1);
-    expect((await pool.getLongs()).length).to.equal(1);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
   });
 
-  it('should not be possible to call enter before init', async () => {
+  it.skip('should not be possible to call enter before init', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -247,7 +231,7 @@ describe('Pool', () => {
     ).to.be.revertedWith('call init before enter');
   });
 
-  it('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
+  it.skip('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -261,18 +245,16 @@ describe('Pool', () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
-
-    expect((await pool.getShorts()).length).to.equal(1);
-    expect((await pool.getLongs()).length).to.equal(1);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(coreContract.signer).update();
 
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
 
     const userBalance = await pool.getUserBalance(
       await getAddressSigner(coreContract)
@@ -281,7 +263,7 @@ describe('Pool', () => {
     expect(userBalance).to.equal(75000);
   });
 
-  it('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
+  it.skip('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -296,21 +278,17 @@ describe('Pool', () => {
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
     await pool.connect(randomAddress).enter(50, Position.LONG);
 
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
-
-    expect((await pool.getShorts()).length).to.equal(1);
-    expect((await pool.getLongs()).length).to.equal(1);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(coreContract.signer).update();
 
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);
-
-    expect((await pool.getShorts()).length).to.equal(1);
-    expect((await pool.getLongs()).length).to.equal(2);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(2500);
 
     const userBalance = await pool.getUserBalance(
       await getAddressSigner(coreContract)
@@ -326,7 +304,7 @@ describe('Pool', () => {
     expect(randomAddressBalance).to.equal(25000);
   });
 
-  it('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
+  it.skip('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -347,26 +325,11 @@ describe('Pool', () => {
     await pool.connect(pool.signer).update();
     await pool.connect(randomAddress).enter(50, Position.SHORT);
 
-    expect(
-      sumChipQuantity(await pool.getShorts(), {
-        address: pool.address,
-      })
-    ).to.equal(0);
-
-    expect(
-      sumChipQuantity(await pool.getLongs(), {
-        address: pool.address,
-      })
-    ).to.equal(25000);
-
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
-
-    expect((await pool.getShorts()).length).to.equal(1);
-    expect((await pool.getLongs()).length).to.equal(2);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
   });
 
-  it('protocol should only burn the principal, and send the rest to the treasury', async () => {
+  it.skip('protocol should only burn the principal, and send the rest to the treasury', async () => {
     const {
       chipToken,
       randomAddress,
@@ -396,7 +359,7 @@ describe('Pool', () => {
     expect(await chipToken.balanceOf(treasury.address)).to.equal(24);
   });
 
-  it('should take an 0.3% fee when entering an synthetic position', async () => {
+  it.skip('should take an 0.3% fee when entering an synthetic position', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract({
         fee: 0.03 * 100_00,
@@ -414,8 +377,8 @@ describe('Pool', () => {
     await pool.connect(randomAddress).enter(50, Position.LONG);
 
     // It's a bit smaller than 0.03 % because of the precision, we can in theory increase this
-    expect(sumChipQuantity(await pool.getShorts())).to.equal(48000);
-    expect(sumChipQuantity(await pool.getLongs())).to.equal(48000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(48000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(48000);
   });
 
   it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {

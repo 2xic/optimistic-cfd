@@ -30,6 +30,10 @@ library MathHelper {
 			(number * (PERCENTAGE_SCALE + scaledPercentage)) / PERCENTAGE_SCALE;
 	}
 
+	function max(uint256 a, uint256 b) public pure returns (uint256) {
+		return a < b ? b : a;
+	}
+
 	function increasePrecision(uint256 number) public pure returns (uint256) {
 		return number * EXPONENT;
 	}

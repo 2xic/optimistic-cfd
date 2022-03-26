@@ -12,7 +12,7 @@ library SimpleRebalanceHelper {
 
 	function rebalancePools(
 		uint256 price,
-		SharedStructs.PoolState storage poolState
+		SharedStructs.PoolState memory poolState
 	) public returns (SharedStructs.PoolState memory) {
 		// TODO: I think we need to consider the pool position here berfore moving, write up a test to coverage that case.
 		if (poolState.price < price) {
@@ -28,7 +28,14 @@ library SimpleRebalanceHelper {
 
 			poolState.longPoolSize += poolAdjustment;
 			poolState.shortPoolSize -= poolAdjustment;
-		} else {
+
+
+			poolState = _reduceProtcolSize(
+				poolAdjustment,
+				true,
+				poolState
+			);
+		} else if (price < poolState.price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				poolState.price,
 				price,
@@ -42,6 +49,29 @@ library SimpleRebalanceHelper {
 
 			poolState.shortPoolSize += poolAdjustment;
 			poolState.longPoolSize -= poolAdjustment;
+			
+			poolState = _reduceProtcolSize(
+				poolAdjustment,
+				false,
+				poolState
+			);
+		}
+
+		return poolState;
+	}
+
+	function _reduceProtcolSize(
+		uint256 poolAdjustment,
+		bool isPriceIncrease,
+		SharedStructs.PoolState memory poolState
+	) public pure returns (SharedStructs.PoolState memory) {
+		if (isPriceIncrease && poolState.protocolState.position == SharedStructs.PositionType.LONG) {
+			bool hasAdjustmentLiquidatedThePool = MathHelper.max(poolState.protocolState.size, poolAdjustment) == poolAdjustment;
+			if (hasAdjustmentLiquidatedThePool) {
+				poolState.protocolState.size = 0;
+			} else {
+
+			}
 		}
 
 		return poolState;
@@ -50,12 +80,13 @@ library SimpleRebalanceHelper {
 	function rebalanceProtcol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		bool shouldProtcolCashOut = _shouldProtcolCashOut(price, poolState);
+		bool canCashOut = 0 < poolState.protocolState.size;
 		bool isProtcolLong = poolState.protocolState.position ==
 			SharedStructs.PositionType.LONG;
 
-		if (shouldProtcolCashOut) {
+		if (shouldProtcolCashOut && canCashOut) {
 			if (isProtcolLong) {
 				poolState.longPoolSize -= poolState.protocolState.size;
 			} else {
@@ -87,14 +118,16 @@ library SimpleRebalanceHelper {
 
 	function _balance(SharedStructs.PoolState memory poolState)
 		private
-		pure
+		view
 		returns (SharedStructs.PoolState memory)
 	{
+
 		bool isProtcolLong = poolState.protocolState.position ==
 			SharedStructs.PositionType.LONG;
 		bool isOutOfBalance = poolState.longPoolSize != poolState.shortPoolSize;
 
 		if (isOutOfBalance && isProtcolLong) {
+
 			poolState.longPoolSize += (poolState.shortPoolSize -
 				poolState.longPoolSize);
 		} else if (isOutOfBalance && !isProtcolLong) {

@@ -61,8 +61,6 @@ export async function deployContract(
 
   const PoolContract = await ethers.getContractFactory('Pool', {
     libraries: {
-      PositionHelper: positionHelper.address,
-      RebalancePoolHelper: rebalanceHelper.address,
       MathHelper: mathHelper.address,
       SimpleRebalanceHelper: simpleRebalanceHelper.address,
     },

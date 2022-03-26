@@ -9,6 +9,10 @@ interface State {
   price: BigNumber;
   longRedeemPrice: BigNumber;
   shortRedeemPrice: BigNumber;
+  protocolState: {
+    position: number;
+    size: BigNumber;
+  };
 }
 
 export async function getPoolState(pool: Pool): Promise<State> {
