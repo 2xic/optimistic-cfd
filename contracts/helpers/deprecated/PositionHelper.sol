@@ -1,10 +1,13 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import {SharedStructs} from '../structs/SharedStructs.sol';
+import {SharedStructs} from '../../structs/SharedStructs.sol';
 import 'hardhat/console.sol';
-import {MathHelper} from './MathHelper.sol';
+import {MathHelper} from '../MathHelper.sol';
 
+/**
+Deprecatred
+ */
 library PositionHelper {
 	using MathHelper for uint256;
 

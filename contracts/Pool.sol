@@ -10,13 +10,10 @@ import 'hardhat/console.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SharedStructs} from './structs/SharedStructs.sol';
-import {PositionHelper} from './helpers/PositionHelper.sol';
-import {RebalancePoolHelper} from './helpers/RebalancePoolHelper.sol';
 import {SimpleRebalanceHelper} from './helpers/SimpleRebalanceHelper.sol';
 import {MathHelper} from './helpers/MathHelper.sol';
 
 contract Pool {
-	using RebalancePoolHelper for SharedStructs.Position[];
 	using MathHelper for uint256;
 	using SimpleRebalanceHelper for SharedStructs.PoolState;
 
@@ -28,10 +25,6 @@ contract Pool {
 	EthShortCfd private shortCfd;
 	Treasury private treasury;
 
-/*	bool private isInitialized;
-	uint256 private lastPrice;
-*/
-	uint16 private exponent;
 	uint256 private fee;
 
 	constructor(
@@ -47,8 +40,6 @@ contract Pool {
 		shortCfd = EthShortCfd(_shortCfd);
 		chipToken = IERC20(_chipToken);
 		treasury = Treasury(_treasury);
-		exponent = 1000;
-		poolState.isInitialized = false;
 		fee = _fee;
 	}
 
@@ -120,18 +111,31 @@ contract Pool {
 		// TODO: I think this can be solved better if you just rescale the numbers
 		uint256 deposited = _subtractFee(amount - leftover);
 
-		require(false, 'not implemented');
+		_createPosition(
+			position,
+			price,
+			deposited.increasePrecision(),
+			msg.sender
+		);
+
+		poolState = SimpleRebalanceHelper.repositionPool(
+			position,
+			deposited.increasePrecision(),
+			poolState
+		);
+
+		update();
+
 		return true;
 	}
 
-	function getUserBalance(address user) public view returns (uint256) {
-		require(false, 'not implemented');
+	function getUserBalance(address user) public pure returns (uint256) {
+		return 0;
 	}
 
 	function update() public payable returns (bool) {
 		uint256 price = priceOracle.getLatestPrice();
 
-		//        poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
 		rebalancePools();
 		poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
 

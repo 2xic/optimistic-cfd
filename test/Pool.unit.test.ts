@@ -1,7 +1,6 @@
 import { expect } from 'chai';
 import { deployContract } from './helpers/deployContract';
 import { getAddressSigner } from './helpers/getAddressSigner';
-import { sumChipQuantity } from './helpers/sumPositions';
 import { Position } from './types/Position';
 import forEach from 'mocha-each';
 import { mintTokenToPool } from './helpers/mintChipTokensToPool';
@@ -98,7 +97,7 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
   });
 
-  it.skip('should not be possible to call the init function multiple times', async () => {
+  it('should not be possible to call the init function multiple times', async () => {
     const { chipToken, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -188,7 +187,7 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
   });
 
-  it.skip('should burn minted $c if fresh users join the pool', async () => {
+  it('should burn minted $c if fresh users join the pool', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);

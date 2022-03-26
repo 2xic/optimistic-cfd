@@ -11,19 +11,6 @@ export async function deployContract(
   const MathHelper = await ethers.getContractFactory('MathHelper');
   const mathHelper = await MathHelper.deploy();
 
-  const PositionHelper = await ethers.getContractFactory('PositionHelper');
-  const positionHelper = await PositionHelper.deploy();
-
-  const RebalancePoolHelper = await ethers.getContractFactory(
-    'RebalancePoolHelper',
-    {
-      libraries: {
-        PositionHelper: positionHelper.address,
-      },
-    }
-  );
-  const rebalanceHelper = await RebalancePoolHelper.deploy();
-
   const SimpleRebalanceHelper = await ethers.getContractFactory(
     'SimpleRebalanceHelper',
     {
