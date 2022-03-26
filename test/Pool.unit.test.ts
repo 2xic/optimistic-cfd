@@ -91,11 +91,16 @@ describe('Pool', () => {
 
     expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
     expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
     // 50% price decrease
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(coreContract.signer).rebalancePools();
+
+    expect((await getPoolState(pool)).longPoolSize).to.eq(25000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
 
     expect(sumChipQuantity(await pool.getLongs())).to.equal(25000);
     expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);

@@ -1,7 +1,9 @@
 {
   "scripts": {
     "test": "hardhat test",
-    "lint": " npx eslint . --fix --quiet --ext .ts"
+    "lint": "npm run lint-ts && npm run lint-sol",
+    "lint-ts": "npx eslint . --fix --quiet --ext .ts",
+    "lint-sol": "solhint --fix 'contracts/**/*.sol'"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
