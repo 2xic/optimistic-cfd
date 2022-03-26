@@ -92,6 +92,9 @@ contract Pool {
 				address(this)
 			);
 			protocolPosition = SharedStructs.PositionType.SHORT;
+
+            poolState.protocolState.size = deposited;
+            poolState.protocolState.position = SharedStructs.PositionType.SHORT;
 		} else if (position == SharedStructs.PositionType.SHORT) {
 			require(
 				chipToken.transferFrom(msg.sender, address(this), rawDeposited),
@@ -110,6 +113,9 @@ contract Pool {
 				address(this)
 			);
 			protocolPosition = SharedStructs.PositionType.LONG;
+
+            poolState.protocolState.size = deposited;
+            poolState.protocolState.position = SharedStructs.PositionType.LONG;
 		}
 		return true;
 	}
@@ -161,6 +167,15 @@ contract Pool {
 	}
 
 	function update() public payable returns (bool) {
+        uint256 price = priceOracle.getLatestPrice();
+        poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+        poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
+
+        bool updated = _oldUpdateCode();
+        return updated;
+	}
+
+    function _oldUpdateCode() private returns (bool) {
 		SharedStructs.Rebalance memory rebalance = rebalancePools();
 		bool priceMovedAgainstProtocolLong = (protocolPosition ==
 			SharedStructs.PositionType.LONG &&
@@ -192,7 +207,8 @@ contract Pool {
 		}
 
 		return true;
-	}
+
+    }
 
 	function rebalancePools()
 		public
@@ -204,7 +220,7 @@ contract Pool {
 		uint256 currentPrice = price;
 		uint256 oldPrice = lastPrice;
 
-		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+//		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
 
 		lastPrice = price;
 

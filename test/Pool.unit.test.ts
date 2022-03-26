@@ -125,7 +125,7 @@ describe('Pool', () => {
     ).to.be.revertedWith('Init should only be called once');
   });
 
-  forEach([[Position.SHORT], [Position.LONG]]).it(
+  forEach([[Position.SHORT], [Position.LONG]]).it.only(
     'should correctly adjust the pools after a price move against the protocol position',
     async (userPosition) => {
       const { chipToken, coreContract, pool, priceConsumer } =
@@ -149,6 +149,9 @@ describe('Pool', () => {
       expect(sumChipQuantity(await pool.getShorts())).to.equal(50000);
       expect(sumChipQuantity(await pool.getLongs())).to.equal(50000);
 
+      expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+      expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
+
       if (userPosition === Position.SHORT) {
         await priceConsumer.connect(coreContract.signer).setPrice(5);
       } else {
@@ -156,6 +159,9 @@ describe('Pool', () => {
       }
 
       await pool.connect(coreContract.signer).update();
+
+      expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+      expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
 
       expect(sumChipQuantity(await pool.getLongs())).to.equal(75000);
       expect(sumChipQuantity(await pool.getShorts())).to.equal(75000);

@@ -15,7 +15,7 @@ contract MockPriceOracle is IPriceOracle {
 		return _price;
 	}
 
-	function getLatestPrice() public override returns (uint256) {
+	function getLatestPrice() public view override returns (uint256) {
 		return price;
 	}
 }
