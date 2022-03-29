@@ -6,6 +6,7 @@ import 'hardhat/console.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SharedStructs} from '../structs/SharedStructs.sol';
 import {MathHelper} from './MathHelper.sol';
+import {ExchangeHelper} from './ExchangeHelper.sol';
 
 library SimpleRebalanceHelper {
 	using MathHelper for uint256;
@@ -13,8 +14,9 @@ library SimpleRebalanceHelper {
 	function rebalancePools(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
+	) public pure returns (SharedStructs.PoolState memory) {
 		// TODO: I think we need to consider the pool position here berfore moving, write up a test to coverage that case.
+		
 		if (poolState.price < price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				price,
@@ -46,7 +48,7 @@ library SimpleRebalanceHelper {
 			poolState.longPoolSize -= poolAdjustment;
 
 			poolState = _reduceProtcolSize(poolAdjustment, false, poolState);
-		}
+		} 
 
 		return poolState;
 	}
@@ -55,13 +57,24 @@ library SimpleRebalanceHelper {
 		SharedStructs.PositionType position,
 		uint256 poolAdjustment,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		if (poolState.protocolState.position == position) {
+			uint256 cfdAdjustment = ExchangeHelper.getMinted(
+				position == SharedStructs.PositionType.LONG ? poolState.shortRedeemPrice : poolState.longRedeemPrice,
+				poolAdjustment.normalizeNumber()
+			);
+
 			poolState.protocolState.size -= poolAdjustment;
-			if (poolState.protocolState.position == SharedStructs.PositionType.LONG) {
+			poolState.protocolState.cfdSize -= cfdAdjustment;
+			if (
+				poolState.protocolState.position ==
+				SharedStructs.PositionType.LONG
+			) {
 				poolState.longPoolSize -= poolAdjustment;
+				poolState.longSupply -= cfdAdjustment;
 			} else {
 				poolState.shortPoolSize -= poolAdjustment;
+				poolState.shortSupply -= cfdAdjustment;
 			}
 		}
 
@@ -83,9 +96,29 @@ library SimpleRebalanceHelper {
 			) == poolAdjustment;
 
 			if (hasAdjustmentLiquidatedThePool) {
+				poolState.longSupply -= poolState.protocolState.cfdSize;
 				poolState.protocolState.size = 0;
+				poolState.protocolState.cfdSize = 0;
 			} else {
 				poolState.protocolState.size -= poolAdjustment;
+				require(false, 'not implemented cfd adjustment');
+			}
+		} else if (
+			!isPriceIncrease &&
+			poolState.protocolState.position == SharedStructs.PositionType.SHORT
+		) {
+			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
+				poolState.protocolState.size,
+				poolAdjustment
+			) == poolAdjustment;
+
+			if (hasAdjustmentLiquidatedThePool) {
+				poolState.shortSupply -= poolState.protocolState.cfdSize;
+				poolState.protocolState.size = 0;
+				poolState.protocolState.cfdSize = 0;
+			} else {
+				poolState.protocolState.size -= poolAdjustment;
+				require(false, 'not implemented cfd adjustment');
 			}
 		}
 
@@ -95,7 +128,7 @@ library SimpleRebalanceHelper {
 	function rebalanceProtcol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		bool shouldProtcolCashOut = _shouldProtcolCashOut(price, poolState);
 		bool canCashOut = 0 < poolState.protocolState.size;
 		bool isProtcolLong = poolState.protocolState.position ==
@@ -104,12 +137,14 @@ library SimpleRebalanceHelper {
 		if (shouldProtcolCashOut && canCashOut) {
 			if (isProtcolLong) {
 				poolState.longPoolSize -= poolState.protocolState.size;
+				poolState.longSupply -= poolState.protocolState.cfdSize;
 			} else {
 				poolState.shortPoolSize -= poolState.protocolState.size;
+				poolState.shortSupply -= poolState.protocolState.cfdSize;
 			}
 		}
 
-		poolState = _balance(poolState);
+		poolState = _balance(poolState, price);
 
 		return poolState;
 	}
@@ -123,30 +158,94 @@ library SimpleRebalanceHelper {
 		bool isProtcolShort = (poolState.protocolState.position ==
 			SharedStructs.PositionType.SHORT);
 
-		bool longAndPriceIncrease = (poolState.price < price) && isProtcolLong;
+		bool longAndPriceIncrease = (poolState.price <= price) && isProtcolLong;
 
-		bool shortAndPriceDecrease = (price < poolState.price) &&
+		bool shortAndPriceDecrease = (price <= poolState.price) &&
 			isProtcolShort;
 
 		return longAndPriceIncrease || shortAndPriceDecrease;
 	}
 
-	function _balance(SharedStructs.PoolState memory poolState)
+	function _balance(SharedStructs.PoolState memory poolState, uint256 price)
 		private
-		pure
+		view
 		returns (SharedStructs.PoolState memory)
 	{
 		bool isProtcolLong = poolState.protocolState.position ==
 			SharedStructs.PositionType.LONG;
 		bool isOutOfBalance = poolState.longPoolSize != poolState.shortPoolSize;
+		bool isProtcolActive = poolState.protocolState.size > 0;
 
-		if (isOutOfBalance && isProtcolLong) {
-			poolState.longPoolSize += (poolState.shortPoolSize -
-				poolState.longPoolSize);
-		} else if (isOutOfBalance && !isProtcolLong) {
-			poolState.shortPoolSize += (poolState.longPoolSize -
-				poolState.shortPoolSize);
+		if (isProtcolActive) {
+			if (isOutOfBalance && isProtcolLong) {
+				poolState.longPoolSize += (poolState.shortPoolSize -
+					poolState.longPoolSize);
+			} else if (isOutOfBalance && !isProtcolLong) {
+				poolState.shortPoolSize += (poolState.longPoolSize -
+					poolState.shortPoolSize);
+			}
 		}
+
+		poolState = _revalule(poolState, price);
+
+		if (poolState.longPoolSize < poolState.shortPoolSize) {
+			poolState = _mint(poolState, SharedStructs.PositionType.LONG);
+		} else if (poolState.shortPoolSize < poolState.longPoolSize) {
+			poolState = _mint(poolState, SharedStructs.PositionType.SHORT);
+		}
+
+		return poolState;
+	}
+
+	function _mint(
+		SharedStructs.PoolState memory poolState,
+		SharedStructs.PositionType pool
+	) private view returns (SharedStructs.PoolState memory) {
+		bool isAlgined = poolState.protocolState.size == 0 ||
+			poolState.protocolState.position == pool;
+		require(isAlgined, 'Only aligned position supportted currently');
+
+		// chip token needed to be mintted = diff
+		// migth have to move this to the main pool contrract to simplify this
+		if (pool == SharedStructs.PositionType.LONG) {
+			uint256 delta = (poolState.shortPoolSize - poolState.longPoolSize);
+			poolState.protocolState.position = SharedStructs.PositionType.LONG;
+			poolState.protocolState.size = delta;
+			poolState.longPoolSize += delta;
+
+			uint256 deltaCfd = ExchangeHelper.getMinted(
+				poolState.longRedeemPrice,
+				delta.normalizeNumber()
+			);
+			poolState.longSupply += deltaCfd;
+			poolState.protocolState.cfdSize += deltaCfd;
+		} else {
+			uint256 delta = (poolState.longPoolSize - poolState.shortPoolSize);
+			poolState.protocolState.position = SharedStructs.PositionType.SHORT;
+			poolState.protocolState.size = delta;
+			poolState.shortPoolSize += delta;
+
+			uint256 deltaCfd = ExchangeHelper.getMinted(
+				poolState.shortRedeemPrice,
+				delta.normalizeNumber()
+			);
+			poolState.shortSupply += deltaCfd;
+			poolState.protocolState.cfdSize += deltaCfd;
+		}
+
+		return poolState;
+	}
+
+	function _revalule(SharedStructs.PoolState memory poolState, uint256 price)
+		private
+		view
+		returns (SharedStructs.PoolState memory)
+	{
+		poolState.shortRedeemPrice = MathHelper.safeDivide(
+			poolState.shortPoolSize.normalizeNumber(),
+			poolState.shortSupply
+		);
+		poolState.longRedeemPrice = price;
 
 		return poolState;
 	}

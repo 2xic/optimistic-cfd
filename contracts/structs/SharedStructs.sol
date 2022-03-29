@@ -25,6 +25,7 @@ library SharedStructs {
 	struct ProtcolState {
 		PositionType position;
 		uint256 size;
+		uint256 cfdSize;
 	}
 
 	struct Rebalance {

@@ -11,11 +11,19 @@ export async function deployContract(
   const MathHelper = await ethers.getContractFactory('MathHelper');
   const mathHelper = await MathHelper.deploy();
 
+  const ExchangeHelper = await ethers.getContractFactory('ExchangeHelper', {
+    libraries: {
+      MathHelper: mathHelper.address,
+    },
+  });
+  const exchangeHelper = await ExchangeHelper.deploy();
+
   const SimpleRebalanceHelper = await ethers.getContractFactory(
     'SimpleRebalanceHelper',
     {
       libraries: {
         MathHelper: mathHelper.address,
+        ExchangeHelper: exchangeHelper.address,
       },
     }
   );
@@ -50,6 +58,7 @@ export async function deployContract(
     libraries: {
       MathHelper: mathHelper.address,
       SimpleRebalanceHelper: simpleRebalanceHelper.address,
+      ExchangeHelper: exchangeHelper.address,
     },
   });
   const pool = await PoolContract.deploy(

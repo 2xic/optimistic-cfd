@@ -213,7 +213,7 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).protocolState.size).to.eq(0);
   });
 
-  it.skip('should not be possible to call enter before init', async () => {
+  it('should not be possible to call enter before init', async () => {
     const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
       await deployContract();
     const coreContractSignerAddress = await getAddressSigner(coreContract);
@@ -228,6 +228,51 @@ describe('Pool', () => {
     await expect(
       pool.connect(randomAddress).enter(50, Position.SHORT)
     ).to.be.revertedWith('call init before enter');
+  });
+
+  it.only('should correctly adjust the short redeem price', async () => {
+    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
+      await deployContract();
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
+    await mintTokenToPool({
+      chipToken,
+      coreContract,
+      pool,
+      coreContractSignerAddress,
+    });
+
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+
+    await pool.connect(coreContract.signer).init(50, Position.LONG);
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(5);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+
+    await pool.connect(randomAddress).enter(50, Position.SHORT);
+
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(0);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
+    expect((await getPoolState(pool)).longSupply).to.eq(5);
+    expect((await getPoolState(pool)).shortSupply).to.eq(5);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+
+    await pool.connect(coreContract.signer).update();
+
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(10);
+
+    expect((await getPoolState(pool)).longSupply).to.eq(15);
+    expect((await getPoolState(pool)).shortSupply).to.eq(5);
+
+    expect((await getPoolState(pool)).longRedeemPrice).to.eq(5);
+    expect((await getPoolState(pool)).shortRedeemPrice).to.eq(15);
+  });
+
+  it.skip('should correctly adjust the long redeem price', async () => {
+    expect.fail('not implemented');
   });
 
   it.skip('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
@@ -246,7 +291,7 @@ describe('Pool', () => {
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
-    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
@@ -259,7 +304,7 @@ describe('Pool', () => {
       await getAddressSigner(coreContract)
     );
 
-    expect(userBalance).to.equal(75000);
+    expect(userBalance).to.equal(75);
   });
 
   it.skip('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {

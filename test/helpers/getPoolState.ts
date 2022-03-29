@@ -12,6 +12,7 @@ interface State {
   protocolState: {
     position: number;
     size: BigNumber;
+    cfdSize: BigNumber;
   };
 }
 

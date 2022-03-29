@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import '../interfaces/IPriceOracle.sol';
 
 contract MockPriceOracle is IPriceOracle {
-	uint256 price;
+	uint256 private price;
 
 	constructor() {
 		price = 5;
