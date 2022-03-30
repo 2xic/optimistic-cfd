@@ -2,11 +2,7 @@
   "editor.formatOnSave": false,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
-},
-"cSpell.enabled": true,
-"cSpell.words": [
-  "Rebalance",
-  "struct",
-  "Structs"
-]
+  },
+  "cSpell.enabled": true,
+  "cSpell.words": ["Rebalance", "struct", "Structs"]
 }

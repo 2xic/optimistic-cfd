@@ -67,18 +67,10 @@ library SimpleRebalanceHelper {
 				poolAdjustment.normalizeNumber()
 			);
 
-			poolState.protocolState.size -= poolAdjustment;
-			poolState.protocolState.cfdSize -= cfdAdjustment;
-			if (
-				poolState.protocolState.position ==
-				SharedStructs.PositionType.LONG
-			) {
-				poolState.longPoolSize -= poolAdjustment;
-				poolState.longSupply -= cfdAdjustment;
-			} else {
-				poolState.shortPoolSize -= poolAdjustment;
-				poolState.shortSupply -= cfdAdjustment;
-			}
+			poolState = poolState.downgradeProtocolPosition(
+				cfdAdjustment,
+				poolAdjustment
+			);
 		}
 
 		return poolState;
@@ -89,36 +81,26 @@ library SimpleRebalanceHelper {
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
-		if (
-			isPriceIncrease &&
-			poolState.protocolState.position == SharedStructs.PositionType.LONG
-		) {
+		if (isPriceIncrease && poolState.isProtocolLong()) {
 			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
 				poolState.protocolState.size,
 				poolAdjustment
 			) == poolAdjustment;
 
 			if (hasAdjustmentLiquidatedThePool) {
-				poolState.longSupply -= poolState.protocolState.cfdSize;
-				poolState.protocolState.size = 0;
-				poolState.protocolState.cfdSize = 0;
+				poolState = poolState.cashOutProtocol();
 			} else {
 				poolState.protocolState.size -= poolAdjustment;
 				require(false, 'not implemented cfd adjustment');
 			}
-		} else if (
-			!isPriceIncrease &&
-			poolState.protocolState.position == SharedStructs.PositionType.SHORT
-		) {
+		} else if (!isPriceIncrease && poolState.isProtocolShort()) {
 			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
 				poolState.protocolState.size,
 				poolAdjustment
 			) == poolAdjustment;
 
 			if (hasAdjustmentLiquidatedThePool) {
-				poolState.shortSupply -= poolState.protocolState.cfdSize;
-				poolState.protocolState.size = 0;
-				poolState.protocolState.cfdSize = 0;
+				poolState = poolState.cashOutProtocol();
 			} else {
 				poolState.protocolState.size -= poolAdjustment;
 				require(false, 'not implemented cfd adjustment');
@@ -133,17 +115,14 @@ library SimpleRebalanceHelper {
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
 		bool shouldProtocolCashOut = _shouldProtocolCashOut(price, poolState);
-		bool canCashOut = 0 < poolState.protocolState.size;
-		bool isProtocolLong = poolState.protocolState.position ==
-			SharedStructs.PositionType.LONG;
+		bool canCashOut = poolState.isProtocolParticipating();
+		bool isProtocolLong = poolState.isProtocolLong();
 
 		if (shouldProtocolCashOut && canCashOut) {
 			if (isProtocolLong) {
-				poolState.longPoolSize -= poolState.protocolState.size;
-				poolState.longSupply -= poolState.protocolState.cfdSize;
+				poolState.cashOutProtocol();
 			} else {
-				poolState.shortPoolSize -= poolState.protocolState.size;
-				poolState.shortSupply -= poolState.protocolState.cfdSize;
+				poolState.cashOutProtocol();
 			}
 		}
 
@@ -159,7 +138,8 @@ library SimpleRebalanceHelper {
 		bool isProtocolLong = poolState.isProtocolLong();
 		bool isProtocolShort = poolState.isProtocolShort();
 
-		bool longAndPriceIncrease = (poolState.price <= price) && isProtocolLong;
+		bool longAndPriceIncrease = (poolState.price <= price) &&
+			isProtocolLong;
 
 		bool shortAndPriceDecrease = (price <= poolState.price) &&
 			isProtocolShort;
@@ -208,28 +188,22 @@ library SimpleRebalanceHelper {
 
 		// chip token needed to be minted = diff
 		// might have to move this to the main pool contract to simplify this
+
+		uint256 delta = pool == SharedStructs.PositionType.LONG
+			? (poolState.shortPoolSize - poolState.longPoolSize)
+			: (poolState.longPoolSize - poolState.shortPoolSize);
+
+		poolState = poolState.setPoolPosition(pool, delta);
+
+		uint256 deltaCfd = ExchangeHelper.getMinted(
+			poolState.getRedeemPrice(pool),
+			delta.normalizeNumber()
+		);
+
 		if (pool == SharedStructs.PositionType.LONG) {
-			uint256 delta = (poolState.shortPoolSize - poolState.longPoolSize);
-			poolState = poolState.setPoolPosition(
-				SharedStructs.PositionType.LONG,
-				delta
-			);
-			uint256 deltaCfd = ExchangeHelper.getMinted(
-				poolState.longRedeemPrice,
-				delta.normalizeNumber()
-			);
 			poolState.longSupply += deltaCfd;
 			poolState.protocolState.cfdSize += deltaCfd;
 		} else {
-			uint256 delta = (poolState.longPoolSize - poolState.shortPoolSize);
-			poolState = poolState.setPoolPosition(
-				SharedStructs.PositionType.SHORT,
-				delta
-			);
-			uint256 deltaCfd = ExchangeHelper.getMinted(
-				poolState.shortRedeemPrice,
-				delta.normalizeNumber()
-			);
 			poolState.shortSupply += deltaCfd;
 			poolState.protocolState.cfdSize += deltaCfd;
 		}

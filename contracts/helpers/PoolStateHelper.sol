@@ -63,9 +63,47 @@ library PoolStateHelper {
 		pure
 		returns (uint256)
 	{
+		return getRedeemPrice(poolState, poolState.protocolState.position);
+	}
+
+	function getRedeemPrice(
+		SharedStructs.PoolState memory poolState,
+		SharedStructs.PositionType pool
+	) public pure returns (uint256) {
 		return
-			poolState.protocolState.position == SharedStructs.PositionType.LONG
-				? poolState.shortRedeemPrice
-				: poolState.longRedeemPrice;
+			pool == SharedStructs.PositionType.LONG
+				? poolState.longRedeemPrice
+				: poolState.shortRedeemPrice;
+	}
+
+	function cashOutProtocol(SharedStructs.PoolState memory poolState)
+		public
+		pure
+		returns (SharedStructs.PoolState memory)
+	{
+		poolState = downgradeProtocolPosition(
+			poolState,
+			poolState.protocolState.cfdSize,
+			poolState.protocolState.size
+		);
+		return poolState;
+	}
+
+	function downgradeProtocolPosition(
+		SharedStructs.PoolState memory poolState,
+		uint256 cfdAdjustment,
+		uint256 chipAdjustment
+	) public pure returns (SharedStructs.PoolState memory) {
+		if (isProtocolLong(poolState)) {
+			poolState.longSupply -= cfdAdjustment;
+			poolState.longPoolSize -= chipAdjustment;
+		} else {
+			poolState.shortSupply -= cfdAdjustment;
+			poolState.shortPoolSize -= chipAdjustment;
+		}
+		poolState.protocolState.size -= chipAdjustment;
+		poolState.protocolState.cfdSize -= cfdAdjustment;
+
+		return poolState;
 	}
 }
