@@ -30,6 +30,7 @@ contract Chip is ERC20 {
 		payable
 		returns (uint256)
 	{
+		require(msg.sender == owner, 'Only owner can transfer minted tokens');
 		transfer(target, amount);
 		return amount;
 	}

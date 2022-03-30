@@ -5,6 +5,7 @@ import { Position } from './types/Position';
 import forEach from 'mocha-each';
 import { mintTokenToPool } from './helpers/mintChipTokensToPool';
 import { getPoolState } from './helpers/getPoolState';
+import { BigNumber } from '@ethersproject/bignumber';
 
 describe('Pool', () => {
   it('should not be possible to call the init function multiple times', async () => {
@@ -149,6 +150,12 @@ describe('Pool', () => {
       coreContract,
       pool,
       coreContractSignerAddress,
+      receivers: [
+        {
+          address: randomAddress,
+          amount: BigNumber.from(100),
+        },
+      ],
     });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);

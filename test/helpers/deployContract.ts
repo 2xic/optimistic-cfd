@@ -18,12 +18,21 @@ export async function deployContract(
   });
   const exchangeHelper = await ExchangeHelper.deploy();
 
+  const PoolStateHelper = await ethers.getContractFactory('PoolStateHelper');
+  const poolStateHelper = await PoolStateHelper.deploy();
+
+  const SharedStructsHelper = await ethers.getContractFactory(
+    'SharedStructsHelper'
+  );
+  const sharedStructsHelper = await SharedStructsHelper.deploy();
+
   const SimpleRebalanceHelper = await ethers.getContractFactory(
     'SimpleRebalanceHelper',
     {
       libraries: {
         MathHelper: mathHelper.address,
         ExchangeHelper: exchangeHelper.address,
+        PoolStateHelper: poolStateHelper.address,
       },
     }
   );
@@ -59,6 +68,7 @@ export async function deployContract(
       MathHelper: mathHelper.address,
       SimpleRebalanceHelper: simpleRebalanceHelper.address,
       ExchangeHelper: exchangeHelper.address,
+      SharedStructsHelper: sharedStructsHelper.address,
     },
   });
   const pool = await PoolContract.deploy(

@@ -13,11 +13,13 @@ import {SharedStructs} from './structs/SharedStructs.sol';
 import {SimpleRebalanceHelper} from './helpers/SimpleRebalanceHelper.sol';
 import {MathHelper} from './helpers/MathHelper.sol';
 import {ExchangeHelper} from './helpers/ExchangeHelper.sol';
+import {SharedStructsHelper} from './helpers/SharedStructsHelper.sol';
 
 contract Pool {
 	using MathHelper for uint256;
 	using ExchangeHelper for uint256;
 	using SimpleRebalanceHelper for SharedStructs.PoolState;
+	using SharedStructsHelper for SharedStructs.PositionType;
 
 	SharedStructs.PoolState private poolState;
 
@@ -45,18 +47,14 @@ contract Pool {
 		fee = _fee;
 	}
 
-	function init(uint256 amount, SharedStructs.PositionType position)
+	function init(uint256 amount, SharedStructs.PositionType userPosition)
 		public
 		payable
-		returns (bool)
 	{
 		require(!poolState.isInitialized, 'Init should only be called once');
 
 		uint256 price = priceOracle.getLatestPrice();
-		uint256 rawDeposited = ExchangeHelper.getExchangedAmount(
-			price,
-			amount
-		);
+		uint256 rawDeposited = ExchangeHelper.getExchangedAmount(price, amount);
 		uint256 deposited = _subtractFee(rawDeposited);
 
 		poolState.price = price;
@@ -64,74 +62,48 @@ contract Pool {
 		poolState.shortRedeemPrice = price;
 		poolState.isInitialized = true;
 
-		if (position == SharedStructs.PositionType.LONG) {
-			require(
-				chipToken.transferFrom(msg.sender, address(this), rawDeposited),
-				'Transfer of chip token failed'
-			);
-			_createPosition(
-				SharedStructs.PositionType.LONG,
-				price,
-				deposited.increasePrecision(),
-				msg.sender
-			);
-			_createPosition(
-				SharedStructs.PositionType.SHORT,
-				price,
-				deposited.increasePrecision(),
-				address(this)
-			);
-		} else if (position == SharedStructs.PositionType.SHORT) {
-			require(
-				chipToken.transferFrom(msg.sender, address(this), rawDeposited),
-				'Transfer of chip token failed'
-			);
-			_createPosition(
-				SharedStructs.PositionType.SHORT,
-				price,
-				deposited.increasePrecision(),
-				msg.sender
-			);
-			_createPosition(
-				SharedStructs.PositionType.LONG,
-				price,
-				deposited.increasePrecision(),
-				address(this)
-			);
-		}
-		return true;
+		_transferChipTokensToContract(rawDeposited);
+
+		_createPosition(
+			userPosition,
+			price,
+			deposited.increasePrecision(),
+			msg.sender
+		);
+		_createPosition(
+			userPosition.getOppositePositon(),
+			price,
+			deposited.increasePrecision(),
+			address(this)
+		);
 	}
 
-	function enter(uint256 amount, SharedStructs.PositionType position)
+	function enter(uint256 amount, SharedStructs.PositionType userPosition)
 		public
 		payable
-		returns (bool)
 	{
 		require(poolState.isInitialized, 'call init before enter');
 
 		uint256 price = priceOracle.getLatestPrice();
-		uint256 rawDeposited = ExchangeHelper.getExchangedAmount(
-			price,
-			amount
-		);
+		uint256 rawDeposited = ExchangeHelper.getExchangedAmount(price, amount);
 		uint256 deposited = _subtractFee(rawDeposited);
 
+		_transferChipTokensToContract(rawDeposited);
+
 		_createPosition(
-			position,
+			userPosition,
 			price,
 			deposited.increasePrecision(),
 			msg.sender
 		);
 
 		poolState = SimpleRebalanceHelper.repositionPool(
-			position,
+			userPosition,
 			deposited.increasePrecision(),
 			poolState
 		);
 
 		update();
-
-		return true;
 	}
 
 	function getUserBalance(address user) public view returns (uint256) {
@@ -145,23 +117,15 @@ contract Pool {
 		}
 	}
 
-	function update() public payable returns (bool) {
+	// TODO: This function should be renamed.
+	// 		It's the function that should be called on a oracle update, but it should also be called when a user enters a trade
+	function update() public payable {
 		uint256 price = priceOracle.getLatestPrice();
 
-		rebalancePools();
+		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
 		poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
 
 		poolState.price = price;
-
-		return true;
-	}
-
-	// TODO : Abstract this function call away 
-	//		  (it's currently only exposed to make testing easier)
-	function rebalancePools() public payable returns (bool) {
-		uint256 price = priceOracle.getLatestPrice();
-		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
-		return true;
 	}
 
 	function _subtractFee(uint256 amount) private view returns (uint256) {
@@ -185,13 +149,25 @@ contract Pool {
 		return poolState;
 	}
 
+	function _transferChipTokensToContract(
+		uint256 amount
+	) private {
+		require(
+			chipToken.transferFrom(msg.sender, address(this), amount),
+			'Transfer of chip token failed'
+		);
+	}
+
 	function _createPosition(
 		SharedStructs.PositionType position,
 		uint256 price,
 		uint256 deposited,
 		address owner
-	) private returns (uint256) {
-		uint256 mintedTokens = ExchangeHelper.getMinted(price, deposited.normalizeNumber());
+	) private {
+		uint256 mintedTokens = ExchangeHelper.getMinted(
+			price,
+			deposited.normalizeNumber()
+		);
 
 		if (position == SharedStructs.PositionType.LONG) {
 			poolState.longSupply += longCfd.exchange(mintedTokens, owner);
@@ -202,11 +178,14 @@ contract Pool {
 		}
 
 		if (owner == address(this)) {
-			poolState.protocolState.size += deposited;
+			bool canPositionBeCreated = poolState.protocolState.position ==
+				position ||
+				poolState.protocolState.size == 0;
+			require(canPositionBeCreated, 'Invalid state');
+
 			poolState.protocolState.position = position;
+			poolState.protocolState.size += deposited;
 			poolState.protocolState.cfdSize += mintedTokens;
 		}
-
-		return 0;
 	}
 }

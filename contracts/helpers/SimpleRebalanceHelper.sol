@@ -7,16 +7,18 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SharedStructs} from '../structs/SharedStructs.sol';
 import {MathHelper} from './MathHelper.sol';
 import {ExchangeHelper} from './ExchangeHelper.sol';
+import {PoolStateHelper} from './PoolStateHelper.sol';
 
 library SimpleRebalanceHelper {
 	using MathHelper for uint256;
+	using PoolStateHelper for SharedStructs.PoolState;
 
 	function rebalancePools(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
 		// TODO: I think we need to consider the pool position here berfore moving, write up a test to coverage that case.
-		
+
 		if (poolState.price < price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				price,
@@ -48,7 +50,7 @@ library SimpleRebalanceHelper {
 			poolState.longPoolSize -= poolAdjustment;
 
 			poolState = _reduceProtcolSize(poolAdjustment, false, poolState);
-		} 
+		}
 
 		return poolState;
 	}
@@ -57,10 +59,11 @@ library SimpleRebalanceHelper {
 		SharedStructs.PositionType position,
 		uint256 poolAdjustment,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
+	) public pure returns (SharedStructs.PoolState memory) {
 		if (poolState.protocolState.position == position) {
+			uint256 reedemPrice = poolState.getProtcolReedemPrice();
 			uint256 cfdAdjustment = ExchangeHelper.getMinted(
-				position == SharedStructs.PositionType.LONG ? poolState.shortRedeemPrice : poolState.longRedeemPrice,
+				reedemPrice,
 				poolAdjustment.normalizeNumber()
 			);
 
@@ -128,7 +131,7 @@ library SimpleRebalanceHelper {
 	function rebalanceProtcol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
+	) public pure returns (SharedStructs.PoolState memory) {
 		bool shouldProtcolCashOut = _shouldProtcolCashOut(price, poolState);
 		bool canCashOut = 0 < poolState.protocolState.size;
 		bool isProtcolLong = poolState.protocolState.position ==
@@ -153,10 +156,8 @@ library SimpleRebalanceHelper {
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) private pure returns (bool) {
-		bool isProtcolLong = (poolState.protocolState.position ==
-			SharedStructs.PositionType.LONG);
-		bool isProtcolShort = (poolState.protocolState.position ==
-			SharedStructs.PositionType.SHORT);
+		bool isProtcolLong = poolState.isProtcolLong();
+		bool isProtcolShort = poolState.isProtcolShort();
 
 		bool longAndPriceIncrease = (poolState.price <= price) && isProtcolLong;
 
@@ -168,14 +169,14 @@ library SimpleRebalanceHelper {
 
 	function _balance(SharedStructs.PoolState memory poolState, uint256 price)
 		private
-		view
+		pure
 		returns (SharedStructs.PoolState memory)
 	{
-		bool isProtcolLong = poolState.protocolState.position ==
-			SharedStructs.PositionType.LONG;
-		bool isOutOfBalance = poolState.longPoolSize != poolState.shortPoolSize;
-		bool isProtcolActive = poolState.protocolState.size > 0;
+		bool isProtcolLong = poolState.isProtcolLong();
+		bool isOutOfBalance = poolState.isUnbalanced();
+		bool isProtcolActive = poolState.isProtcolPartipatcing();
 
+		// TODO : this is wrong
 		if (isProtcolActive) {
 			if (isOutOfBalance && isProtcolLong) {
 				poolState.longPoolSize += (poolState.shortPoolSize -
@@ -200,7 +201,7 @@ library SimpleRebalanceHelper {
 	function _mint(
 		SharedStructs.PoolState memory poolState,
 		SharedStructs.PositionType pool
-	) private view returns (SharedStructs.PoolState memory) {
+	) private pure returns (SharedStructs.PoolState memory) {
 		bool isAlgined = poolState.protocolState.size == 0 ||
 			poolState.protocolState.position == pool;
 		require(isAlgined, 'Only aligned position supportted currently');
@@ -209,10 +210,10 @@ library SimpleRebalanceHelper {
 		// migth have to move this to the main pool contrract to simplify this
 		if (pool == SharedStructs.PositionType.LONG) {
 			uint256 delta = (poolState.shortPoolSize - poolState.longPoolSize);
-			poolState.protocolState.position = SharedStructs.PositionType.LONG;
-			poolState.protocolState.size = delta;
-			poolState.longPoolSize += delta;
-
+			poolState = poolState.setPoolPosition(
+				SharedStructs.PositionType.LONG,
+				delta
+			);
 			uint256 deltaCfd = ExchangeHelper.getMinted(
 				poolState.longRedeemPrice,
 				delta.normalizeNumber()
@@ -221,10 +222,10 @@ library SimpleRebalanceHelper {
 			poolState.protocolState.cfdSize += deltaCfd;
 		} else {
 			uint256 delta = (poolState.longPoolSize - poolState.shortPoolSize);
-			poolState.protocolState.position = SharedStructs.PositionType.SHORT;
-			poolState.protocolState.size = delta;
-			poolState.shortPoolSize += delta;
-
+			poolState = poolState.setPoolPosition(
+				SharedStructs.PositionType.SHORT,
+				delta
+			);
 			uint256 deltaCfd = ExchangeHelper.getMinted(
 				poolState.shortRedeemPrice,
 				delta.normalizeNumber()
@@ -238,7 +239,7 @@ library SimpleRebalanceHelper {
 
 	function _revalule(SharedStructs.PoolState memory poolState, uint256 price)
 		private
-		view
+		pure
 		returns (SharedStructs.PoolState memory)
 	{
 		poolState.shortRedeemPrice = MathHelper.safeDivide(
