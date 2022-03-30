@@ -17,7 +17,7 @@ library SimpleRebalanceHelper {
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
-		// TODO: I think we need to consider the pool position here berfore moving, write up a test to coverage that case.
+		// TODO: I think we need to consider the pool position here before moving, write up a test to coverage that case.
 
 		if (poolState.price < price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
@@ -33,7 +33,7 @@ library SimpleRebalanceHelper {
 			poolState.longPoolSize += poolAdjustment;
 			poolState.shortPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtcolSize(poolAdjustment, true, poolState);
+			poolState = _reduceProtocolSize(poolAdjustment, true, poolState);
 		} else if (price < poolState.price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				poolState.price,
@@ -49,7 +49,7 @@ library SimpleRebalanceHelper {
 			poolState.shortPoolSize += poolAdjustment;
 			poolState.longPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtcolSize(poolAdjustment, false, poolState);
+			poolState = _reduceProtocolSize(poolAdjustment, false, poolState);
 		}
 
 		return poolState;
@@ -61,9 +61,9 @@ library SimpleRebalanceHelper {
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
 		if (poolState.protocolState.position == position) {
-			uint256 reedemPrice = poolState.getProtcolReedemPrice();
+			uint256 redeemPrice = poolState.getProtocolRedeemPrice();
 			uint256 cfdAdjustment = ExchangeHelper.getMinted(
-				reedemPrice,
+				redeemPrice,
 				poolAdjustment.normalizeNumber()
 			);
 
@@ -84,7 +84,7 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _reduceProtcolSize(
+	function _reduceProtocolSize(
 		uint256 poolAdjustment,
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
@@ -128,17 +128,17 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function rebalanceProtcol(
+	function rebalanceProtocol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
-		bool shouldProtcolCashOut = _shouldProtcolCashOut(price, poolState);
+		bool shouldProtocolCashOut = _shouldProtocolCashOut(price, poolState);
 		bool canCashOut = 0 < poolState.protocolState.size;
-		bool isProtcolLong = poolState.protocolState.position ==
+		bool isProtocolLong = poolState.protocolState.position ==
 			SharedStructs.PositionType.LONG;
 
-		if (shouldProtcolCashOut && canCashOut) {
-			if (isProtcolLong) {
+		if (shouldProtocolCashOut && canCashOut) {
+			if (isProtocolLong) {
 				poolState.longPoolSize -= poolState.protocolState.size;
 				poolState.longSupply -= poolState.protocolState.cfdSize;
 			} else {
@@ -152,17 +152,17 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _shouldProtcolCashOut(
+	function _shouldProtocolCashOut(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) private pure returns (bool) {
-		bool isProtcolLong = poolState.isProtcolLong();
-		bool isProtcolShort = poolState.isProtcolShort();
+		bool isProtocolLong = poolState.isProtocolLong();
+		bool isProtocolShort = poolState.isProtocolShort();
 
-		bool longAndPriceIncrease = (poolState.price <= price) && isProtcolLong;
+		bool longAndPriceIncrease = (poolState.price <= price) && isProtocolLong;
 
 		bool shortAndPriceDecrease = (price <= poolState.price) &&
-			isProtcolShort;
+			isProtocolShort;
 
 		return longAndPriceIncrease || shortAndPriceDecrease;
 	}
@@ -172,22 +172,22 @@ library SimpleRebalanceHelper {
 		pure
 		returns (SharedStructs.PoolState memory)
 	{
-		bool isProtcolLong = poolState.isProtcolLong();
+		bool isProtocolLong = poolState.isProtocolLong();
 		bool isOutOfBalance = poolState.isUnbalanced();
-		bool isProtcolActive = poolState.isProtcolPartipatcing();
+		bool isProtocolActive = poolState.isProtocolParticipating();
 
 		// TODO : this is wrong
-		if (isProtcolActive) {
-			if (isOutOfBalance && isProtcolLong) {
+		if (isProtocolActive) {
+			if (isOutOfBalance && isProtocolLong) {
 				poolState.longPoolSize += (poolState.shortPoolSize -
 					poolState.longPoolSize);
-			} else if (isOutOfBalance && !isProtcolLong) {
+			} else if (isOutOfBalance && !isProtocolLong) {
 				poolState.shortPoolSize += (poolState.longPoolSize -
 					poolState.shortPoolSize);
 			}
 		}
 
-		poolState = _revalule(poolState, price);
+		poolState = _revalue(poolState, price);
 
 		if (poolState.longPoolSize < poolState.shortPoolSize) {
 			poolState = _mint(poolState, SharedStructs.PositionType.LONG);
@@ -202,12 +202,12 @@ library SimpleRebalanceHelper {
 		SharedStructs.PoolState memory poolState,
 		SharedStructs.PositionType pool
 	) private pure returns (SharedStructs.PoolState memory) {
-		bool isAlgined = poolState.protocolState.size == 0 ||
+		bool isAligned = poolState.protocolState.size == 0 ||
 			poolState.protocolState.position == pool;
-		require(isAlgined, 'Only aligned position supportted currently');
+		require(isAligned, 'Only aligned position supported currently');
 
-		// chip token needed to be mintted = diff
-		// migth have to move this to the main pool contrract to simplify this
+		// chip token needed to be minted = diff
+		// might have to move this to the main pool contract to simplify this
 		if (pool == SharedStructs.PositionType.LONG) {
 			uint256 delta = (poolState.shortPoolSize - poolState.longPoolSize);
 			poolState = poolState.setPoolPosition(
@@ -237,7 +237,7 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _revalule(SharedStructs.PoolState memory poolState, uint256 price)
+	function _revalue(SharedStructs.PoolState memory poolState, uint256 price)
 		private
 		pure
 		returns (SharedStructs.PoolState memory)

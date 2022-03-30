@@ -6,7 +6,7 @@ import {MathHelper} from './MathHelper.sol';
 import {SharedStructs} from '../structs/SharedStructs.sol';
 
 library PoolStateHelper {
-	function isProtcolLong(SharedStructs.PoolState memory poolState)
+	function isProtocolLong(SharedStructs.PoolState memory poolState)
 		public
 		pure
 		returns (bool)
@@ -15,7 +15,7 @@ library PoolStateHelper {
 			poolState.protocolState.position == SharedStructs.PositionType.LONG;
 	}
 
-	function isProtcolShort(SharedStructs.PoolState memory poolState)
+	function isProtocolShort(SharedStructs.PoolState memory poolState)
 		public
 		pure
 		returns (bool)
@@ -33,7 +33,7 @@ library PoolStateHelper {
 		return poolState.longPoolSize != poolState.shortPoolSize;
 	}
 
-	function isProtcolPartipatcing(SharedStructs.PoolState memory poolState)
+	function isProtocolParticipating(SharedStructs.PoolState memory poolState)
 		public
 		pure
 		returns (bool)
@@ -58,7 +58,7 @@ library PoolStateHelper {
 		return poolState;
 	}
 
-	function getProtcolReedemPrice(SharedStructs.PoolState memory poolState)
+	function getProtocolRedeemPrice(SharedStructs.PoolState memory poolState)
 		public
 		pure
 		returns (uint256)

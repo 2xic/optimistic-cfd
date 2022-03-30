@@ -13,14 +13,14 @@ contract Chip is ERC20 {
 
 	function mint(uint256 amount) public payable returns (uint256) {
 		require(msg.sender == owner, 'Only owner can mint tokens');
-		require(amount > 0, 'Amount not spesificed');
+		require(amount > 0, 'Amount not specified');
 		_mint(owner, amount);
 		return amount;
 	}
 
 	function burn(uint256 amount) public payable returns (uint256) {
 		require(msg.sender == owner, 'Only owner can burn tokens');
-		require(amount > 0, 'Amount not spesificed');
+		require(amount > 0, 'Amount not specified');
 		_burn(owner, amount);
 		return amount;
 	}

@@ -6,7 +6,7 @@ import {MathHelper} from './MathHelper.sol';
 import {SharedStructs} from '../structs/SharedStructs.sol';
 
 library SharedStructsHelper {
-	function getOppositePositon(SharedStructs.PositionType position)
+	function getOppositePosition(SharedStructs.PositionType position)
 		public
 		pure
 		returns (SharedStructs.PositionType)

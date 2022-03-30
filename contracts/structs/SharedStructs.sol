@@ -18,11 +18,11 @@ library SharedStructs {
 		uint256 longRedeemPrice;
 		uint256 shortRedeemPrice;
 
-		ProtcolState protocolState;
+		ProtocolState protocolState;
 		bool isInitialized;
 	}
 
-	struct ProtcolState {
+	struct ProtocolState {
 		PositionType position;
 		uint256 size;
 		uint256 cfdSize;

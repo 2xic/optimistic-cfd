@@ -71,7 +71,7 @@ contract Pool {
 			msg.sender
 		);
 		_createPosition(
-			userPosition.getOppositePositon(),
+			userPosition.getOppositePosition(),
 			price,
 			deposited.increasePrecision(),
 			address(this)
@@ -123,7 +123,7 @@ contract Pool {
 		uint256 price = priceOracle.getLatestPrice();
 
 		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
-		poolState = SimpleRebalanceHelper.rebalanceProtcol(price, poolState);
+		poolState = SimpleRebalanceHelper.rebalanceProtocol(price, poolState);
 
 		poolState.price = price;
 	}
@@ -131,7 +131,7 @@ contract Pool {
 	function _subtractFee(uint256 amount) private view returns (uint256) {
 		if (fee != 0) {
 			uint256 scaledFeeAmount = amount.increasePrecision() * fee;
-			// TODO: Constants like thesse should be abstracted away
+			// TODO: Constants like these should be abstracted away
 			uint256 normalizedFeeAmount = scaledFeeAmount / 10_000;
 			uint256 deposited = amount.increasePrecision() -
 				normalizedFeeAmount;

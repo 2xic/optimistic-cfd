@@ -3,5 +3,10 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
 },
-"cSpell.enabled": true
+"cSpell.enabled": true,
+"cSpell.words": [
+  "Rebalance",
+  "struct",
+  "Structs"
+]
 }

@@ -22,7 +22,7 @@ library MathHelper {
 	}
 
 	// TODO: Figure out how many decimals we actually should store
-	// 		 If we want to support many assets, we sohuld probably track 8 decimals	to be on the safe side.
+	// 		 If we want to support many assets, we should probably track 8 decimals	to be on the safe side.
 	function safeDivide(uint256 a, uint256 b) public pure returns(uint256) {
 		require(b > 0, 'Cannot divide by zero');
 
