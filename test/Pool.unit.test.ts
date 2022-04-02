@@ -5,10 +5,9 @@ import { Position } from './types/Position';
 import forEach from 'mocha-each';
 import { mintTokenToPool } from './helpers/mintChipTokensToPool';
 import { getPoolState } from './helpers/getPoolState';
-import { BigNumber } from '@ethersproject/bignumber';
 import { Chip, CoreContract, MockPriceOracle, Pool } from '../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { Contract } from 'ethers';
+import { BigNumber, Contract } from 'ethers';
 
 describe('Pool', () => {
   let chipToken: Chip;
