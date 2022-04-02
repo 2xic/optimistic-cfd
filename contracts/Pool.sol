@@ -14,12 +14,14 @@ import {SimpleRebalanceHelper} from './helpers/SimpleRebalanceHelper.sol';
 import {MathHelper} from './helpers/MathHelper.sol';
 import {ExchangeHelper} from './helpers/ExchangeHelper.sol';
 import {SharedStructsHelper} from './helpers/SharedStructsHelper.sol';
+import {PoolStateHelper} from './helpers/PoolStateHelper.sol';
 
 contract Pool {
 	using MathHelper for uint256;
 	using ExchangeHelper for uint256;
 	using SimpleRebalanceHelper for SharedStructs.PoolState;
 	using SharedStructsHelper for SharedStructs.PositionType;
+	using PoolStateHelper for SharedStructs.PoolState;
 
 	SharedStructs.PoolState private poolState;
 
@@ -106,6 +108,17 @@ contract Pool {
 		update();
 	}
 
+	// TODO: This function should be renamed.
+	// 		It's the function that should be called on a oracle update, but it should also be called when a user enters a trade
+	function update() public payable {
+		uint256 price = priceOracle.getLatestPrice();
+
+		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
+		poolState = SimpleRebalanceHelper.rebalanceProtocol(price, poolState);
+
+		poolState.price = price;
+	}
+
 	function getUserBalance(address user) public view returns (uint256) {
 		uint256 shortBalance = shortCfd.balanceOf(user);
 		uint256 longBalance = longCfd.balanceOf(user);
@@ -117,16 +130,14 @@ contract Pool {
 		}
 	}
 
-	// TODO: This function should be renamed.
-	// 		It's the function that should be called on a oracle update, but it should also be called when a user enters a trade
-	function update() public payable {
-		uint256 price = priceOracle.getLatestPrice();
-
-		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
-		poolState = SimpleRebalanceHelper.rebalanceProtocol(price, poolState);
-
-		poolState.price = price;
+	function getPoolState()
+		public
+		view
+		returns (SharedStructs.PoolState memory)
+	{
+		return poolState;
 	}
+
 
 	function _subtractFee(uint256 amount) private view returns (uint256) {
 		if (fee != 0) {
@@ -139,14 +150,6 @@ contract Pool {
 			return deposited.normalizeNumber();
 		}
 		return amount;
-	}
-
-	function getPoolState()
-		public
-		view
-		returns (SharedStructs.PoolState memory)
-	{
-		return poolState;
 	}
 
 	function _transferChipTokensToContract(
@@ -178,9 +181,7 @@ contract Pool {
 		}
 
 		if (owner == address(this)) {
-			bool canPositionBeCreated = poolState.protocolState.position ==
-				position ||
-				poolState.protocolState.size == 0;
+			bool canPositionBeCreated = poolState.canProtocolEnterPosition(position);
 			require(canPositionBeCreated, 'Invalid state');
 
 			poolState.protocolState.position = position;

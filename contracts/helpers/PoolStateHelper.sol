@@ -47,12 +47,15 @@ library PoolStateHelper {
 		uint256 size
 	) public pure returns (SharedStructs.PoolState memory) {
 		poolState.protocolState.position = pool;
+
 		if (pool == SharedStructs.PositionType.LONG) {
 			poolState.protocolState.size = size;
 			poolState.longPoolSize += size;
-		} else {
+		} else if (pool == SharedStructs.PositionType.SHORT) {
 			poolState.protocolState.size = size;
-			poolState.longPoolSize += size;
+			poolState.shortPoolSize += size;
+		} else {
+			require(false, 'Unknown state');
 		}
 
 		return poolState;
@@ -105,5 +108,18 @@ library PoolStateHelper {
 		poolState.protocolState.cfdSize -= cfdAdjustment;
 
 		return poolState;
+	}
+
+	function canProtocolEnterPosition(
+		SharedStructs.PoolState memory poolState,
+		SharedStructs.PositionType position
+	) public pure returns (bool) {
+		if (poolState.protocolState.position == position) {
+			return true;
+		} else if (poolState.protocolState.size == 0) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 }

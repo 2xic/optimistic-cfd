@@ -137,6 +137,9 @@ describe('Pool', () => {
     await pool.connect(coreContract.signer).init(50, Position.LONG);
     expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(5);
     expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.position).to.eq(
+      Position.SHORT
+    );
 
     await pool.connect(randomAddress).enter(50, Position.SHORT);
 
@@ -162,8 +165,41 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).shortRedeemPrice).to.eq(15);
   });
 
-  it.skip('should correctly adjust the long redeem price', async () => {
-    expect.fail('not implemented');
+  it('should correctly adjust the long redeem price', async () => {
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(5);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.position).to.eq(
+      Position.LONG
+    );
+
+    await pool.connect(randomAddress).enter(50, Position.LONG);
+
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(0);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(0);
+
+    expect((await getPoolState(pool)).longSupply).to.eq(5);
+    expect((await getPoolState(pool)).shortSupply).to.eq(5);
+
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(15);
+    await pool.connect(coreContract.signer).update();
+
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(10);
+
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+
+    expect((await getPoolState(pool)).longSupply).to.eq(5);
+    expect((await getPoolState(pool)).shortSupply).to.eq(15);
+
+    expect((await getPoolState(pool)).longRedeemPrice).to.eq(15);
+    expect((await getPoolState(pool)).shortRedeemPrice).to.eq(5);
   });
 
   it.skip('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {

@@ -33,7 +33,11 @@ library SimpleRebalanceHelper {
 			poolState.longPoolSize += poolAdjustment;
 			poolState.shortPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtocolSize(poolAdjustment, true, poolState);
+			poolState = _reduceProtocolPosition(
+				poolAdjustment,
+				true,
+				poolState
+			);
 		} else if (price < poolState.price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				poolState.price,
@@ -49,7 +53,11 @@ library SimpleRebalanceHelper {
 			poolState.shortPoolSize += poolAdjustment;
 			poolState.longPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtocolSize(poolAdjustment, false, poolState);
+			poolState = _reduceProtocolPosition(
+				poolAdjustment,
+				false,
+				poolState
+			);
 		}
 
 		return poolState;
@@ -76,7 +84,7 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _reduceProtocolSize(
+	function _reduceProtocolPosition(
 		uint256 poolAdjustment,
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
@@ -169,9 +177,14 @@ library SimpleRebalanceHelper {
 
 		poolState = _revalue(poolState, price);
 
-		if (poolState.longPoolSize < poolState.shortPoolSize) {
+		bool isShortPoolBigger = poolState.longPoolSize <
+			poolState.shortPoolSize;
+		bool isLongPoolBigger = poolState.shortPoolSize <
+			poolState.longPoolSize;
+
+		if (isShortPoolBigger) {
 			poolState = _mint(poolState, SharedStructs.PositionType.LONG);
-		} else if (poolState.shortPoolSize < poolState.longPoolSize) {
+		} else if (isLongPoolBigger) {
 			poolState = _mint(poolState, SharedStructs.PositionType.SHORT);
 		}
 
@@ -203,9 +216,11 @@ library SimpleRebalanceHelper {
 		if (pool == SharedStructs.PositionType.LONG) {
 			poolState.longSupply += deltaCfd;
 			poolState.protocolState.cfdSize += deltaCfd;
-		} else {
+		} else if (pool == SharedStructs.PositionType.SHORT) {
 			poolState.shortSupply += deltaCfd;
 			poolState.protocolState.cfdSize += deltaCfd;
+		} else {
+			require(false, 'Unknown state');
 		}
 
 		return poolState;

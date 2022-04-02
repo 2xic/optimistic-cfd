@@ -69,6 +69,7 @@ export async function deployContract(
       SimpleRebalanceHelper: simpleRebalanceHelper.address,
       ExchangeHelper: exchangeHelper.address,
       SharedStructsHelper: sharedStructsHelper.address,
+      PoolStateHelper: poolStateHelper.address,
     },
   });
   const pool = await PoolContract.deploy(
