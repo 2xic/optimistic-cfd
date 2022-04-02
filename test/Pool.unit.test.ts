@@ -6,19 +6,44 @@ import forEach from 'mocha-each';
 import { mintTokenToPool } from './helpers/mintChipTokensToPool';
 import { getPoolState } from './helpers/getPoolState';
 import { BigNumber } from '@ethersproject/bignumber';
+import { Chip, CoreContract, MockPriceOracle, Pool } from '../typechain';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { Contract } from 'ethers';
 
 describe('Pool', () => {
-  it('should not be possible to call the init function multiple times', async () => {
-    const { chipToken, coreContract, pool, priceConsumer } =
-      await deployContract();
+  let chipToken: Chip;
+  let randomAddress: SignerWithAddress;
+  let coreContract: CoreContract;
+  let pool: Pool;
+  let priceConsumer: MockPriceOracle;
+  let treasury: Contract;
+
+  beforeEach(async () => {
+    const options = await deployContract();
+
+    chipToken = options.chipToken;
+    randomAddress = options.randomAddress;
+    coreContract = options.coreContract;
+    pool = options.pool;
+    priceConsumer = options.priceConsumer;
+    treasury = options.treasury;
+
     const coreContractSignerAddress = await getAddressSigner(coreContract);
     await mintTokenToPool({
       chipToken,
       coreContract,
       pool,
       coreContractSignerAddress,
+      receivers: [
+        {
+          address: randomAddress,
+          amount: BigNumber.from(100),
+        },
+      ],
     });
+  });
 
+  it('should not be possible to call the init function multiple times', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
@@ -30,15 +55,7 @@ describe('Pool', () => {
   forEach([[Position.SHORT], [Position.LONG]]).it(
     'should correctly adjust the pools after a price move against the protocol position',
     async (userPosition) => {
-      const { chipToken, coreContract, pool, priceConsumer } =
-        await deployContract();
       const coreContractSignerAddress = await getAddressSigner(coreContract);
-      await mintTokenToPool({
-        chipToken,
-        coreContract,
-        pool,
-        coreContractSignerAddress,
-      });
 
       await priceConsumer.connect(coreContract.signer).setPrice(10);
       await pool.connect(coreContract.signer).init(50, userPosition);
@@ -66,15 +83,6 @@ describe('Pool', () => {
 
   it.skip('should keep the pools balanced after priced move with the protocol', async () => {
     const userPosition = Position.LONG;
-    const { chipToken, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, userPosition);
@@ -99,19 +107,11 @@ describe('Pool', () => {
   });
 
   it('should burn minted $c if fresh users join the pool', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
     await pool.connect(randomAddress).enter(50, Position.SHORT);
+
+    const coreContractSignerAddress = await getAddressSigner(coreContract);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
       coreContractSignerAddress
@@ -125,39 +125,13 @@ describe('Pool', () => {
   });
 
   it('should not be possible to call enter before init', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await expect(
       pool.connect(randomAddress).enter(50, Position.SHORT)
     ).to.be.revertedWith('call init before enter');
   });
 
-  it.only('should correctly adjust the short redeem price', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-      receivers: [
-        {
-          address: randomAddress,
-          amount: BigNumber.from(100),
-        },
-      ],
-    });
-
+  it('should correctly adjust the short redeem price', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
 
     await pool.connect(coreContract.signer).init(50, Position.LONG);
@@ -193,16 +167,6 @@ describe('Pool', () => {
   });
 
   it.skip('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
-    const { chipToken, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
@@ -225,16 +189,6 @@ describe('Pool', () => {
   });
 
   it.skip('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
     await pool.connect(randomAddress).enter(50, Position.LONG);
@@ -266,16 +220,6 @@ describe('Pool', () => {
   });
 
   it.skip('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
 
@@ -291,22 +235,6 @@ describe('Pool', () => {
   });
 
   it.skip('protocol should only burn the principal, and send the rest to the treasury', async () => {
-    const {
-      chipToken,
-      randomAddress,
-      treasury,
-      coreContract,
-      pool,
-      priceConsumer,
-    } = await deployContract();
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
-    });
-
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
 
