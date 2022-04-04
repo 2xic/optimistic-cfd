@@ -23,7 +23,10 @@ contract Pool {
 	using SharedStructsHelper for SharedStructs.PositionType;
 	using PoolStateHelper for SharedStructs.PoolState;
 
+	mapping(address => uint256) public exitQueue;
+
 	SharedStructs.PoolState private poolState;
+	uint256 private fee;
 
 	IPriceOracle private priceOracle;
 	IERC20 private chipToken;
@@ -31,7 +34,8 @@ contract Pool {
 	EthShortCfd private shortCfd;
 	Treasury private treasury;
 
-	uint256 private fee;
+	address private _longTCfd;
+	address private _shortCfd ;
 
 	constructor(
 		address _priceFeed,
@@ -119,15 +123,22 @@ contract Pool {
 		poolState.price = price;
 	}
 
-	function getUserBalance(address user) public view returns (uint256) {
-		uint256 shortBalance = shortCfd.balanceOf(user);
-		uint256 longBalance = longCfd.balanceOf(user);
-
-		if (0 < shortBalance) {
+	function getUserBalance(SharedStructs.PositionType position) public view returns (uint256) {
+		if (position == SharedStructs.PositionType.LONG) {
+			uint256 shortBalance = shortCfd.balanceOf(msg.sender);
 			return poolState.shortRedeemPrice * shortBalance;
 		} else {
+		uint256 longBalance = longCfd.balanceOf(msg.sender);
 			return poolState.longRedeemPrice * longBalance;
 		}
+	}
+
+	function withdrawalLong(uint256 amount) public payable {
+		require(
+			chipToken.transferFrom(address(this), msg.sender,  amount),
+			'Transfer of chip token failed'
+		);
+		exitQueue[msg.sender] = this.getUserBalance(SharedStructs.PositionType.LONG);
 	}
 
 	function getPoolState()
@@ -137,7 +148,6 @@ contract Pool {
 	{
 		return poolState;
 	}
-
 
 	function _subtractFee(uint256 amount) private view returns (uint256) {
 		if (fee != 0) {
@@ -152,9 +162,7 @@ contract Pool {
 		return amount;
 	}
 
-	function _transferChipTokensToContract(
-		uint256 amount
-	) private {
+	function _transferChipTokensToContract(uint256 amount) private {
 		require(
 			chipToken.transferFrom(msg.sender, address(this), amount),
 			'Transfer of chip token failed'
@@ -181,7 +189,9 @@ contract Pool {
 		}
 
 		if (owner == address(this)) {
-			bool canPositionBeCreated = poolState.canProtocolEnterPosition(position);
+			bool canPositionBeCreated = poolState.canProtocolEnterPosition(
+				position
+			);
 			require(canPositionBeCreated, 'Invalid state');
 
 			poolState.protocolState.position = position;

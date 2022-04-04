@@ -128,4 +128,6 @@ describe('Chip', function () {
 
     chipToken.connect(owner).burn(100);
   });
+
+  it.skip('should be possible to exchange other stablecoins for chip token', () => {});
 });

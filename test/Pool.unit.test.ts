@@ -305,40 +305,23 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).longPoolSize).to.eq(48000);
   });
 
-  it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {
-    expect.fail('Not implemented');
-  });
+  it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {});
 
   it.skip('should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol', () => {
     // i.e protocol is long with 50 $c, and a user goes long with 75$, then the protocol has to go short with 25$
-    expect.fail('not implemented');
   });
 
-  it.skip('should correctly readjust the position of the protocol if a new user enters against the protocol', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should correctly readjust the position of the protocol if a new user enters against the protocol', () => {});
 
-  it.skip('should update the ownership users has of the long pool on price increase', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should update the ownership users has of the long pool on price increase', () => {});
 
-  it.skip('should update the ownership users has of the short pool on price increase', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should update the ownership users has of the short pool on price increase', () => {});
 
-  it.skip('should update the ownership users has of the short pool on price decrease', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should update the ownership users has of the short pool on price decrease', () => {});
 
-  it.skip('should update the ownership users has of the long pool on price decrease', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should update the ownership users has of the long pool on price decrease', () => {});
 
-  it.skip('should credit an disproportional amount of the less popular side when price moves in their favour', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should credit an disproportional amount of the less popular side when price moves in their favour', () => {});
 
-  it.skip('should not be possible for users to frontrun oracle updates', () => {
-    expect.fail('not implemented');
-  });
+  it.skip('should not be possible for users to frontrun oracle updates', () => {});
 });
