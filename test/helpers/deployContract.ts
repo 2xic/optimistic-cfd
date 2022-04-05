@@ -1,7 +1,11 @@
 import { ethers } from 'hardhat';
 
+export interface DeployOptions {
+  fee: number;
+}
+
 export async function deployContract(
-  options: { fee: number } = {
+  options: DeployOptions = {
     fee: 0,
   }
 ) {

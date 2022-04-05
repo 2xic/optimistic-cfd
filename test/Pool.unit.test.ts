@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { deployContract } from './helpers/deployContract';
+import { deployContract, DeployOptions } from './helpers/deployContract';
 import { getAddressSigner } from './helpers/getAddressSigner';
 import { Position } from './types/Position';
 import forEach from 'mocha-each';
@@ -17,8 +17,8 @@ describe('Pool', () => {
   let priceConsumer: MockPriceOracle;
   let treasury: Contract;
 
-  beforeEach(async () => {
-    const options = await deployContract();
+  async function deploy(deploymentOptions?: DeployOptions) {
+    const options = await deployContract(deploymentOptions);
 
     chipToken = options.chipToken;
     randomAddress = options.randomAddress;
@@ -40,6 +40,10 @@ describe('Pool', () => {
         },
       ],
     });
+  }
+
+  beforeEach(async () => {
+    await deploy();
   });
 
   it('should not be possible to call the init function multiple times', async () => {
@@ -73,7 +77,7 @@ describe('Pool', () => {
         await priceConsumer.connect(coreContract.signer).setPrice(15);
       }
 
-      await pool.connect(coreContract.signer).update();
+      await pool.connect(coreContract.signer).rebalance();
 
       expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
       expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
@@ -92,14 +96,14 @@ describe('Pool', () => {
     // Protocol will be short, and will therefore "burn" the outstanding
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(25000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(25000);
 
     await priceConsumer.connect(coreContract.signer).setPrice(15);
 
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
@@ -149,7 +153,7 @@ describe('Pool', () => {
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
@@ -186,7 +190,7 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
     await priceConsumer.connect(coreContract.signer).setPrice(15);
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
     expect((await getPoolState(pool)).protocolState.cfdSize).to.eq(10);
@@ -201,29 +205,28 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).shortRedeemPrice).to.eq(5);
   });
 
-  it.skip('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
+  it('should correctly calculate the user balance in a 1-1 scenario (user against protocol)', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
-
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
 
-    const userBalance = await pool.getUserBalance(
-      await getAddressSigner(coreContract)
-    );
+    const userBalance = await pool
+      .connect(await getAddressSigner(coreContract))
+      .getUserBalance(Position.LONG);
 
     expect(userBalance).to.equal(75);
   });
 
-  it.skip('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
+  it('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
     await pool.connect(randomAddress).enter(50, Position.LONG);
@@ -234,27 +237,26 @@ describe('Pool', () => {
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
-    await pool.connect(coreContract.signer).update();
+    await pool.connect(coreContract.signer).rebalance();
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
-    expect((await getPoolState(pool)).protocolState.size).to.eq(2500);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
 
-    const userBalance = await pool.getUserBalance(
-      await getAddressSigner(coreContract)
-    );
-    expect(userBalance).to.equal(75000);
+    const userBalance = await pool
+      .connect(await getAddressSigner(coreContract))
+      .getUserBalance(Position.SHORT);
 
-    const protocolAddressBalance = await pool.getUserBalance(pool.address);
-    expect(protocolAddressBalance).to.equal(50000);
+    expect(userBalance).to.equal(75);
 
-    const randomAddressBalance = await pool.getUserBalance(
-      await randomAddress.getAddress()
-    );
-    expect(randomAddressBalance).to.equal(25000);
+    const randomAddressBalance = await pool
+      .connect(randomAddress)
+      .getUserBalance(Position.LONG);
+
+    expect(randomAddressBalance).to.equal(25);
   });
 
-  it.skip('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
+  it.only('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
 
@@ -262,7 +264,12 @@ describe('Pool', () => {
     expect(await chipToken.balanceOf(pool.address)).to.equal(50);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
-    await pool.connect(pool.signer).update();
+
+    await pool.connect(pool.signer).rebalance();
+
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+
     await pool.connect(randomAddress).enter(50, Position.SHORT);
 
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
@@ -277,23 +284,15 @@ describe('Pool', () => {
     expect(await chipToken.balanceOf(pool.address)).to.equal(50);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
-    await pool.connect(pool.signer).update();
+    await pool.connect(pool.signer).rebalance();
     await pool.connect(randomAddress).enter(50, Position.SHORT);
 
     expect(await chipToken.balanceOf(treasury.address)).to.equal(24);
   });
 
-  it.skip('should take an 0.3% fee when entering an synthetic position', async () => {
-    const { chipToken, randomAddress, coreContract, pool, priceConsumer } =
-      await deployContract({
-        fee: 0.03 * 100_00,
-      });
-    const coreContractSignerAddress = await getAddressSigner(coreContract);
-    await mintTokenToPool({
-      chipToken,
-      coreContract,
-      pool,
-      coreContractSignerAddress,
+  it('should take an 0.3% fee when entering an synthetic position', async () => {
+    await deploy({
+      fee: 0.03 * 1_000,
     });
 
     await priceConsumer.connect(coreContract.signer).setPrice(10);

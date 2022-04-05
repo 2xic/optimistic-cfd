@@ -23,8 +23,6 @@ contract Pool {
 	using SharedStructsHelper for SharedStructs.PositionType;
 	using PoolStateHelper for SharedStructs.PoolState;
 
-	mapping(address => uint256) public exitQueue;
-
 	SharedStructs.PoolState private poolState;
 	uint256 private fee;
 
@@ -33,9 +31,6 @@ contract Pool {
 	EthLongCfd private longCfd;
 	EthShortCfd private shortCfd;
 	Treasury private treasury;
-
-	address private _longTCfd;
-	address private _shortCfd ;
 
 	constructor(
 		address _priceFeed,
@@ -109,12 +104,10 @@ contract Pool {
 			poolState
 		);
 
-		update();
+		rebalance();
 	}
 
-	// TODO: This function should be renamed.
-	// 		It's the function that should be called on a oracle update, but it should also be called when a user enters a trade
-	function update() public payable {
+	function rebalance() public payable {
 		uint256 price = priceOracle.getLatestPrice();
 
 		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
@@ -123,22 +116,18 @@ contract Pool {
 		poolState.price = price;
 	}
 
-	function getUserBalance(SharedStructs.PositionType position) public view returns (uint256) {
-		if (position == SharedStructs.PositionType.LONG) {
+	function getUserBalance(SharedStructs.PositionType position)
+		public
+		view
+		returns (uint256)
+	{
+		if (position == SharedStructs.PositionType.SHORT) {
 			uint256 shortBalance = shortCfd.balanceOf(msg.sender);
 			return poolState.shortRedeemPrice * shortBalance;
 		} else {
-		uint256 longBalance = longCfd.balanceOf(msg.sender);
+			uint256 longBalance = longCfd.balanceOf(msg.sender);
 			return poolState.longRedeemPrice * longBalance;
 		}
-	}
-
-	function withdrawalLong(uint256 amount) public payable {
-		require(
-			chipToken.transferFrom(address(this), msg.sender,  amount),
-			'Transfer of chip token failed'
-		);
-		exitQueue[msg.sender] = this.getUserBalance(SharedStructs.PositionType.LONG);
 	}
 
 	function getPoolState()
@@ -151,11 +140,10 @@ contract Pool {
 
 	function _subtractFee(uint256 amount) private view returns (uint256) {
 		if (fee != 0) {
-			uint256 scaledFeeAmount = amount.increasePrecision() * fee;
-			// TODO: Constants like these should be abstracted away
-			uint256 normalizedFeeAmount = scaledFeeAmount / 10_000;
-			uint256 deposited = amount.increasePrecision() -
-				normalizedFeeAmount;
+			uint256 scaledAmount = amount.increasePrecision();
+			uint256 scaledFeeAmount = scaledAmount * fee;
+			uint256 normalizedFeeAmount = scaledFeeAmount.normalizeNumber();
+			uint256 deposited = scaledAmount - normalizedFeeAmount;
 
 			return deposited.normalizeNumber();
 		}

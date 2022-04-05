@@ -16,7 +16,7 @@ library SimpleRebalanceHelper {
 	function rebalancePools(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		// TODO: I think we need to consider the pool position here before moving, write up a test to coverage that case.
 
 		if (poolState.price < price) {
@@ -88,7 +88,7 @@ library SimpleRebalanceHelper {
 		uint256 poolAdjustment,
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		if (isPriceIncrease && poolState.isProtocolLong()) {
 			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
 				poolState.protocolState.size,
@@ -111,7 +111,7 @@ library SimpleRebalanceHelper {
 				poolState = poolState.cashOutProtocol();
 			} else {
 				poolState.protocolState.size -= poolAdjustment;
-				require(false, 'not implemented cfd adjustment');
+				poolState.shortPoolSize -= poolAdjustment;
 			}
 		}
 
@@ -164,14 +164,19 @@ library SimpleRebalanceHelper {
 		bool isOutOfBalance = poolState.isUnbalanced();
 		bool isProtocolActive = poolState.isProtocolParticipating();
 
-		// TODO : this is wrong
-		if (isProtocolActive) {
-			if (isOutOfBalance && isProtocolLong) {
+		// TODO : this is wrong, but will be fixed when additional tests are added.
+		if (isProtocolActive && isOutOfBalance) {
+			if (isProtocolLong) {
 				poolState.longPoolSize += (poolState.shortPoolSize -
 					poolState.longPoolSize);
-			} else if (isOutOfBalance && !isProtocolLong) {
-				poolState.shortPoolSize += (poolState.longPoolSize -
-					poolState.shortPoolSize);
+			} else if (!isProtocolLong) {
+				if (poolState.shortPoolSize < poolState.longPoolSize) {
+					poolState.shortPoolSize += (poolState.longPoolSize -
+						poolState.shortPoolSize);
+				} else {
+					poolState.shortPoolSize -= (poolState.shortPoolSize -
+						poolState.longPoolSize);
+				}
 			}
 		}
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import 'hardhat/console.sol';
 
 library MathHelper {
-	uint256 private constant EXPONENT = 1000;
+	uint256 private constant EXPONENT = 1_000;
 	uint256 private constant PERCENTAGE_SCALE = 100;
 
 	function relativeDivide(
@@ -23,7 +23,7 @@ library MathHelper {
 
 	// TODO: Figure out how many decimals we actually should store
 	// 		 If we want to support many assets, we should probably track 8 decimals	to be on the safe side.
-	function safeDivide(uint256 a, uint256 b) public pure returns(uint256) {
+	function safeDivide(uint256 a, uint256 b) public pure returns (uint256) {
 		require(b > 0, 'Cannot divide by zero');
 
 		uint256 c = (a * EXPONENT) / (b * EXPONENT);
