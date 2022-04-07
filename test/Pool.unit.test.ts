@@ -212,6 +212,11 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+
+    expect(
+      await pool.connect(pool.address).getUserBalance(Position.LONG)
+    ).to.eq(50);
+
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(coreContract.signer).rebalance();
@@ -219,11 +224,16 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
 
+    expect((await getPoolState(pool)).protocolState.size).to.eq(75000);
+
+    expect((await getPoolState(pool)).shortRedeemPrice).to.eq(15);
+    expect((await getPoolState(pool)).longRedeemPrice).to.eq(5);
+
     const userBalance = await pool
-      .connect(await getAddressSigner(coreContract))
+      .connect(pool.address)
       .getUserBalance(Position.LONG);
 
-    expect(userBalance).to.equal(75);
+    expect(userBalance).to.equal(25);
   });
 
   it('should correctly calculate the user balance in a 1-2 scenario (user against protocol + user)', async () => {
@@ -256,24 +266,46 @@ describe('Pool', () => {
     expect(randomAddressBalance).to.equal(25);
   });
 
-  it.only('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
+  it('should correctly re-balance the pools after a price has changed, and new users enter pool', async () => {
     await priceConsumer.connect(coreContract.signer).setPrice(10);
     await pool.connect(coreContract.signer).init(50, Position.LONG);
 
-    await chipToken.connect(pool.signer).approve(pool.address, 100);
     expect(await chipToken.balanceOf(pool.address)).to.equal(50);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
 
     await priceConsumer.connect(coreContract.signer).setPrice(5);
 
     await pool.connect(pool.signer).rebalance();
 
-    expect((await getPoolState(pool)).shortPoolSize).to.eq(75000);
-    expect((await getPoolState(pool)).longPoolSize).to.eq(75000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(25000);
+    expect((await getPoolState(pool)).longPoolSize).to.eq(25000);
 
     await pool.connect(randomAddress).enter(50, Position.SHORT);
 
+    expect((await getPoolState(pool)).protocolState.position).to.eq(
+      Position.LONG
+    );
+    expect((await getPoolState(pool)).protocolState.size).to.eq(25000);
+
     expect((await getPoolState(pool)).shortPoolSize).to.eq(50000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(50000);
+  });
+
+  it('should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol', async () => {
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    await pool.connect(randomAddress).enter(80, Position.LONG);
+
+    await pool.connect(pool.signer).rebalance();
+
+    expect((await getPoolState(pool)).longPoolSize).to.eq(80000);
+    expect((await getPoolState(pool)).shortPoolSize).to.eq(80000);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(30000);
+    expect((await getPoolState(pool)).protocolState.position).to.eq(
+      Position.SHORT
+    );
   });
 
   it.skip('protocol should only burn the principal, and send the rest to the treasury', async () => {
@@ -299,28 +331,20 @@ describe('Pool', () => {
     await pool.connect(coreContract.signer).init(50, Position.SHORT);
     await pool.connect(randomAddress).enter(50, Position.LONG);
 
-    // It's a bit smaller than 0.03 % because of the precision, we can in theory increase this
+    // It's a bit smaller than 0.03 % because of the precision that should be increased.
     expect((await getPoolState(pool)).shortPoolSize).to.eq(48000);
     expect((await getPoolState(pool)).longPoolSize).to.eq(48000);
   });
 
   it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {});
 
-  it.skip('should stabilize the pools if a user deposits takes the position of the protocol, and deposits more than the exposure of the protocol', () => {
-    // i.e protocol is long with 50 $c, and a user goes long with 75$, then the protocol has to go short with 25$
-  });
-
   it.skip('should correctly readjust the position of the protocol if a new user enters against the protocol', () => {});
-
-  it.skip('should update the ownership users has of the long pool on price increase', () => {});
-
-  it.skip('should update the ownership users has of the short pool on price increase', () => {});
-
-  it.skip('should update the ownership users has of the short pool on price decrease', () => {});
-
-  it.skip('should update the ownership users has of the long pool on price decrease', () => {});
 
   it.skip('should credit an disproportional amount of the less popular side when price moves in their favour', () => {});
 
   it.skip('should not be possible for users to frontrun oracle updates', () => {});
+
+  it.skip('should correctly calculate how much a user can withdrawal', () => {});
+
+  it.skip('should be possible to withdrawal directly', () => {});
 });

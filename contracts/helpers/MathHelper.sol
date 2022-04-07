@@ -51,4 +51,11 @@ library MathHelper {
 	function normalizeNumber(uint256 number) public pure returns (uint256) {
 		return number / EXPONENT;
 	}
+
+	function downAdjustNumber(uint256 currentValue, uint256 downAdjustment) public pure returns (uint256){
+		if (currentValue < downAdjustment) {
+			return 0;
+		}
+		return currentValue - downAdjustment;
+	}
 }

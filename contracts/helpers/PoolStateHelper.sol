@@ -6,6 +6,8 @@ import {MathHelper} from './MathHelper.sol';
 import {SharedStructs} from '../structs/SharedStructs.sol';
 
 library PoolStateHelper {
+	using MathHelper for uint256;
+
 	function isProtocolLong(SharedStructs.PoolState memory poolState)
 		public
 		pure
@@ -98,14 +100,29 @@ library PoolStateHelper {
 		uint256 chipAdjustment
 	) public pure returns (SharedStructs.PoolState memory) {
 		if (isProtocolLong(poolState)) {
-			poolState.longSupply -= cfdAdjustment;
-			poolState.longPoolSize -= chipAdjustment;
+			poolState.longSupply = poolState.longSupply.downAdjustNumber(
+				cfdAdjustment
+			);
+			poolState.longPoolSize = poolState.longPoolSize.downAdjustNumber(
+				chipAdjustment
+			);
 		} else {
-			poolState.shortSupply -= cfdAdjustment;
-			poolState.shortPoolSize -= chipAdjustment;
+			poolState.shortSupply = poolState.shortSupply.downAdjustNumber(
+				cfdAdjustment
+			);
+			poolState.shortPoolSize = poolState.shortPoolSize.downAdjustNumber(
+				chipAdjustment
+			);
 		}
-		poolState.protocolState.size -= chipAdjustment;
-		poolState.protocolState.cfdSize -= cfdAdjustment;
+
+		poolState.protocolState.size = poolState
+			.protocolState
+			.size
+			.downAdjustNumber(chipAdjustment);
+		poolState.protocolState.cfdSize = poolState
+			.protocolState
+			.cfdSize
+			.downAdjustNumber(cfdAdjustment);
 
 		return poolState;
 	}

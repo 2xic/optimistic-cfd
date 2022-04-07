@@ -1,10 +1,23 @@
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
+import { Chip } from '../typechain';
 import { decodeBoolAbi } from './helpers/decodeAbi';
 import { deployContract } from './helpers/deployContract';
 import { getAddressSigner } from './helpers/getAddressSigner';
 
 describe('Chip', function () {
+  let owner: SignerWithAddress;
+  let randomAddress: SignerWithAddress;
+  let chipToken: Chip;
+
+  beforeEach(async () => {
+    [owner, randomAddress] = await ethers.getSigners();
+
+    const ChipTokenContract = await ethers.getContractFactory('Chip');
+    chipToken = await ChipTokenContract.deploy(await owner.getAddress());
+  });
+
   it('Should be possible to mint new tokens', async function () {
     const { chipToken, coreContract } = await deployContract();
     await chipToken.mint(100);
@@ -26,14 +39,6 @@ describe('Chip', function () {
     await expect(
       await chipToken.balanceOf(await coreContract.signer.getAddress())
     ).to.equal(0);
-  });
-
-  it.skip('Should only be possible for the "core" contract to mint or burn chip tokens', async () => {
-    const { chipToken, randomAddress } = await deployContract();
-    await chipToken.connect(randomAddress).mint(100);
-
-    const balance = await chipToken.balanceOf(chipToken.address);
-    expect(balance).to.equal(0);
   });
 
   it('Should be possible to exchange $c for $cfdLong', async () => {
@@ -103,11 +108,6 @@ describe('Chip', function () {
   });
 
   it('only be possible for the owner contract to mint tokens', async () => {
-    const [owner, randomAddress] = await ethers.getSigners();
-
-    const ChipTokenContract = await ethers.getContractFactory('Chip');
-    const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
-
     await expect(chipToken.connect(randomAddress).mint(100)).to.be.revertedWith(
       'Only owner can mint tokens'
     );
@@ -115,11 +115,6 @@ describe('Chip', function () {
   });
 
   it('only be possible for the owner contract to burn tokens', async () => {
-    const [owner, randomAddress] = await ethers.getSigners();
-
-    const ChipTokenContract = await ethers.getContractFactory('Chip');
-    const chipToken = await ChipTokenContract.deploy(await owner.getAddress());
-
     await chipToken.connect(owner).mint(100);
 
     await expect(chipToken.connect(randomAddress).burn(100)).to.be.revertedWith(

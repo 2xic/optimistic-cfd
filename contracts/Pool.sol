@@ -91,17 +91,17 @@ contract Pool {
 
 		_transferChipTokensToContract(rawDeposited);
 
+		poolState = SimpleRebalanceHelper.repositionPool(
+			userPosition,
+			deposited.increasePrecision(),
+			poolState
+		);
+
 		_createPosition(
 			userPosition,
 			price,
 			deposited.increasePrecision(),
 			msg.sender
-		);
-
-		poolState = SimpleRebalanceHelper.repositionPool(
-			userPosition,
-			deposited.increasePrecision(),
-			poolState
 		);
 
 		rebalance();

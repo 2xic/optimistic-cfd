@@ -22,8 +22,12 @@ export async function deployContract(
   });
   const exchangeHelper = await ExchangeHelper.deploy();
 
-  const PoolStateHelper = await ethers.getContractFactory('PoolStateHelper');
-  const poolStateHelper = await PoolStateHelper.deploy();
+  const PoolStateHelper = await ethers.getContractFactory('PoolStateHelper', {
+    libraries: {
+      MathHelper: mathHelper.address,
+    },
+  });
+  const poolStateHelper = await PoolStateHelper.deploy({});
 
   const SharedStructsHelper = await ethers.getContractFactory(
     'SharedStructsHelper'

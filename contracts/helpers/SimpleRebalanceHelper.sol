@@ -89,6 +89,7 @@ library SimpleRebalanceHelper {
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
 	) public view returns (SharedStructs.PoolState memory) {
+		// TODO: This function is becoming complicated. Simplify it.
 		if (isPriceIncrease && poolState.isProtocolLong()) {
 			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
 				poolState.protocolState.size,
@@ -113,6 +114,10 @@ library SimpleRebalanceHelper {
 				poolState.protocolState.size -= poolAdjustment;
 				poolState.shortPoolSize -= poolAdjustment;
 			}
+		} else if (!isPriceIncrease && poolState.isProtocolLong()) {
+			if (poolAdjustment < poolState.protocolState.size) {
+				poolState.protocolState.size -= poolAdjustment;
+			}
 		}
 
 		return poolState;
@@ -121,7 +126,7 @@ library SimpleRebalanceHelper {
 	function rebalanceProtocol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) public view returns (SharedStructs.PoolState memory) {
 		bool shouldProtocolCashOut = _shouldProtocolCashOut(price, poolState);
 		bool canCashOut = poolState.isProtocolParticipating();
 		bool isProtocolLong = poolState.isProtocolLong();
@@ -167,8 +172,11 @@ library SimpleRebalanceHelper {
 		// TODO : this is wrong, but will be fixed when additional tests are added.
 		if (isProtocolActive && isOutOfBalance) {
 			if (isProtocolLong) {
-				poolState.longPoolSize += (poolState.shortPoolSize -
+				uint256 delta = (poolState.shortPoolSize -
 					poolState.longPoolSize);
+
+				poolState.longPoolSize += delta;
+				poolState.protocolState.size += delta;
 			} else if (!isProtocolLong) {
 				if (poolState.shortPoolSize < poolState.longPoolSize) {
 					poolState.shortPoolSize += (poolState.longPoolSize -
@@ -206,6 +214,7 @@ library SimpleRebalanceHelper {
 
 		// chip token needed to be minted = diff
 		// might have to move this to the main pool contract to simplify this
+		// TODO: ^ Add the test for this.
 
 		uint256 delta = pool == SharedStructs.PositionType.LONG
 			? (poolState.shortPoolSize - poolState.longPoolSize)
