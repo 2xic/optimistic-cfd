@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IPriceOracle} from './interfaces/IPriceOracle.sol';
 import {EthLongCfd} from './tokens/EthLongCfd.sol';
 import {EthShortCfd} from './tokens/EthShortCfd.sol';
+import {Chip} from './tokens/Chip.sol';
 import {Treasury} from './Treasury.sol';
 import {Chip} from './tokens/Chip.sol';
 import 'hardhat/console.sol';
@@ -27,7 +28,7 @@ contract Pool {
 	uint256 private fee;
 
 	IPriceOracle private priceOracle;
-	IERC20 private chipToken;
+	Chip private chipToken;
 	EthLongCfd private longCfd;
 	EthShortCfd private shortCfd;
 	Treasury private treasury;
@@ -43,7 +44,7 @@ contract Pool {
 		priceOracle = IPriceOracle(_priceFeed);
 		longCfd = EthLongCfd(_longTCfd);
 		shortCfd = EthShortCfd(_shortCfd);
-		chipToken = IERC20(_chipToken);
+		chipToken = Chip(_chipToken);
 		treasury = Treasury(_treasury);
 		fee = _fee;
 	}

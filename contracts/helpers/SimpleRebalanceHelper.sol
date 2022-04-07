@@ -16,9 +16,7 @@ library SimpleRebalanceHelper {
 	function rebalancePools(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
-		// TODO: I think we need to consider the pool position here before moving, write up a test to coverage that case.
-
+	) public pure returns (SharedStructs.PoolState memory) {
 		if (poolState.price < price) {
 			uint256 relativePriceChange = MathHelper.relativeDivide(
 				price,
@@ -88,35 +86,29 @@ library SimpleRebalanceHelper {
 		uint256 poolAdjustment,
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
-		// TODO: This function is becoming complicated. Simplify it.
-		if (isPriceIncrease && poolState.isProtocolLong()) {
-			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
-				poolState.protocolState.size,
-				poolAdjustment
-			) == poolAdjustment;
+	) public pure returns (SharedStructs.PoolState memory) {
+		bool hasAdjustmentLiquidatedThePool = MathHelper.max(
+			poolState.protocolState.size,
+			poolAdjustment
+		) == poolAdjustment;
 
-			if (hasAdjustmentLiquidatedThePool) {
-				poolState = poolState.cashOutProtocol();
-			} else {
+		if (hasAdjustmentLiquidatedThePool) {
+			poolState = poolState.cashOutProtocol();
+		} else {
+			bool longAndPriceMovementAgainstProtocol = !isPriceIncrease && poolState.isProtocolLong();
+			bool longAndPriceMovementWithProtocol = isPriceIncrease && poolState.isProtocolLong();
+			bool shortAndPriceMovementWithProtocol = !isPriceIncrease && poolState.isProtocolShort();
+
+			if (longAndPriceMovementWithProtocol) {
 				poolState.protocolState.size -= poolAdjustment;
 				require(false, 'not implemented cfd adjustment');
-			}
-		} else if (!isPriceIncrease && poolState.isProtocolShort()) {
-			bool hasAdjustmentLiquidatedThePool = MathHelper.max(
-				poolState.protocolState.size,
-				poolAdjustment
-			) == poolAdjustment;
-
-			if (hasAdjustmentLiquidatedThePool) {
-				poolState = poolState.cashOutProtocol();
-			} else {
+			} else if (shortAndPriceMovementWithProtocol) {
 				poolState.protocolState.size -= poolAdjustment;
 				poolState.shortPoolSize -= poolAdjustment;
-			}
-		} else if (!isPriceIncrease && poolState.isProtocolLong()) {
-			if (poolAdjustment < poolState.protocolState.size) {
-				poolState.protocolState.size -= poolAdjustment;
+			} else if (longAndPriceMovementAgainstProtocol) {
+				if (poolAdjustment < poolState.protocolState.size) {
+					poolState.protocolState.size -= poolAdjustment;
+				}
 			}
 		}
 
@@ -126,7 +118,7 @@ library SimpleRebalanceHelper {
 	function rebalanceProtocol(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
-	) public view returns (SharedStructs.PoolState memory) {
+	) public pure returns (SharedStructs.PoolState memory) {
 		bool shouldProtocolCashOut = _shouldProtocolCashOut(price, poolState);
 		bool canCashOut = poolState.isProtocolParticipating();
 		bool isProtocolLong = poolState.isProtocolLong();
@@ -211,10 +203,6 @@ library SimpleRebalanceHelper {
 		bool isAligned = poolState.protocolState.size == 0 ||
 			poolState.protocolState.position == pool;
 		require(isAligned, 'Only aligned position supported currently');
-
-		// chip token needed to be minted = diff
-		// might have to move this to the main pool contract to simplify this
-		// TODO: ^ Add the test for this.
 
 		uint256 delta = pool == SharedStructs.PositionType.LONG
 			? (poolState.shortPoolSize - poolState.longPoolSize)

@@ -336,6 +336,18 @@ describe('Pool', () => {
     expect((await getPoolState(pool)).longPoolSize).to.eq(48000);
   });
 
+  it.skip('should correctly correctly mint $c on protocol rebalancing', async () => {
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    await pool.connect(randomAddress).enter(50, Position.LONG);
+
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+    await pool.connect(coreContract.signer).rebalance();
+
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect(await chipToken.balanceOf(pool.address)).to.eq(50);
+  });
+
   it.skip('should take an 0.3% fee on when exiting an synthetic position', () => {});
 
   it.skip('should correctly readjust the position of the protocol if a new user enters against the protocol', () => {});
