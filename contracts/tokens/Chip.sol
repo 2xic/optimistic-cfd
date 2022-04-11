@@ -6,9 +6,14 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 contract Chip is ERC20 {
 	address private owner;
+	ERC20 private usdc;
 
-	constructor(address _owner) ERC20('Chip', 'C') {
+	constructor(
+		address _owner,
+		address _usdc
+	) ERC20('Chip', 'C') {
 		owner = _owner;
+		usdc = ERC20(_usdc);
 	}
 
 	function mint(uint256 amount) public payable returns (uint256) {		
@@ -40,5 +45,10 @@ contract Chip is ERC20 {
 		owner = newOwner;
 
 		return true;
+	}
+
+	function exchange(uint256 amount) public payable {		
+		require(usdc.transferFrom(msg.sender, address(this), amount), 'Transfer of usdc failed');
+		_mint(msg.sender, amount);
 	}
 }

@@ -1,7 +1,8 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
+import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
-import { Chip } from '../typechain';
+import { Chip, MockStableCoin } from '../typechain';
 import { decodeBoolAbi } from './helpers/decodeAbi';
 import { deployContract } from './helpers/deployContract';
 import { getAddressSigner } from './helpers/getAddressSigner';
@@ -10,35 +11,34 @@ describe('Chip', function () {
   let owner: SignerWithAddress;
   let randomAddress: SignerWithAddress;
   let chipToken: Chip;
+  let stableCoin: MockStableCoin;
 
   beforeEach(async () => {
     [owner, randomAddress] = await ethers.getSigners();
 
     const ChipTokenContract = await ethers.getContractFactory('Chip');
-    chipToken = await ChipTokenContract.deploy(await owner.getAddress());
+    const StableCoin = await ethers.getContractFactory('MockStableCoin');
+    stableCoin = await StableCoin.deploy();
+
+    chipToken = await ChipTokenContract.deploy(
+      await owner.getAddress(),
+      stableCoin.address
+    );
   });
 
   it('Should be possible to mint new tokens', async function () {
-    const { chipToken, coreContract } = await deployContract();
     await chipToken.mint(100);
 
-    const balance = await chipToken.balanceOf(
-      await coreContract.signer.getAddress()
-    );
+    const balance = await chipToken.balanceOf(await owner.getAddress());
     expect(balance).to.equal(100);
   });
 
   it('Should be possible to burn new tokens', async function () {
-    const { chipToken, coreContract } = await deployContract();
     await chipToken.mint(100);
-    await expect(
-      await chipToken.balanceOf(await coreContract.signer.getAddress())
-    ).to.equal(100);
+    expect(await getBalanceOfOwner()).to.equal(100);
 
     await chipToken.burn(100);
-    await expect(
-      await chipToken.balanceOf(await coreContract.signer.getAddress())
-    ).to.equal(0);
+    expect(await getBalanceOfOwner()).to.equal(0);
   });
 
   it('Should be possible to exchange $c for $cfdLong', async () => {
@@ -52,12 +52,7 @@ describe('Chip', function () {
     );
     expect(coreContractBalance).to.equal(100);
 
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-
-    expect(decodeBoolAbi({ data })).to.equal(true);
-
+    await chipToken.connect(coreContract.signer).approve(pool.address, 100);
     await pool.connect(coreContract.signer).init(75, 0);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
@@ -85,12 +80,7 @@ describe('Chip', function () {
     );
     expect(coreContractBalance).to.equal(100);
 
-    const { data } = await chipToken
-      .connect(coreContract.signer)
-      .approve(pool.address, 100);
-
-    expect(decodeBoolAbi({ data })).to.equal(true);
-
+    await chipToken.connect(coreContract.signer).approve(pool.address, 100);
     await pool.connect(coreContract.signer).init(75, 1);
 
     const updatedCoreContractBalance = await chipToken.balanceOf(
@@ -124,5 +114,22 @@ describe('Chip', function () {
     chipToken.connect(owner).burn(100);
   });
 
-  it.skip('should be possible to exchange other stablecoins for chip token', () => {});
+  it('should be possible to exchange other stablecoins for chip token', async () => {
+    await chipToken.connect(owner).mint(100);
+    await stableCoin.mint(randomAddress.address, 100);
+
+    await stableCoin
+      .connect(randomAddress)
+      .increaseAllowance(chipToken.address, 10000);
+
+    await chipToken.connect(randomAddress).exchange(100);
+
+    expect((await chipToken.balanceOf(randomAddress.address)).toString()).to.eq(
+      '100'
+    );
+  });
+
+  async function getBalanceOfOwner(): Promise<BigNumber> {
+    return await chipToken.balanceOf(await owner.getAddress());
+  }
 });
