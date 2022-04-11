@@ -28,7 +28,7 @@ export async function mintTokenToPool({
     .reduce((a, b) => a.add(b.amount), BigNumber.from(0))
     .toNumber();
 
-  await chipToken.mint(amount);
+  await chipToken.connect(pool.signer).mint(amount);
 
   const coreContractBalance = await chipToken.balanceOf(
     coreContractSignerAddress
@@ -38,7 +38,7 @@ export async function mintTokenToPool({
   await Promise.all(
     receivers.map(async ({ address, amount }) => {
       await chipToken
-        .connect(coreContract.signer)
+        .connect(pool.signer)
         .transferToken(amount, await address.getAddress());
 
       const { data } = await chipToken
@@ -48,4 +48,6 @@ export async function mintTokenToPool({
       expect(decodeBoolAbi({ data })).to.equal(true);
     })
   );
+
+  await chipToken.connect(pool.signer).transferOwnerShip(pool.address);
 }

@@ -5,7 +5,7 @@ import 'hardhat/console.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 contract EthShortCfd is ERC20 {
-	address public owner;
+	address private owner;
 
 	constructor(address _owner) ERC20('EthShortCfd', 'ETHSCDF') {
 		owner = _owner;

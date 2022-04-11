@@ -1,3 +1,4 @@
+import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
 export interface DeployOptions {
@@ -53,9 +54,7 @@ export async function deployContract(
   const treasury = await TreasuryContract.deploy();
 
   const ChipTokenContract = await ethers.getContractFactory('Chip');
-  const chipToken = await ChipTokenContract.deploy(
-    await coreContract.signer.getAddress()
-  );
+  const chipToken = await ChipTokenContract.deploy(_owner.address);
 
   const LongCfdEthContract = await ethers.getContractFactory('EthLongCfd');
   const longCfdTOken = await LongCfdEthContract.deploy(_owner.address);
@@ -90,8 +89,11 @@ export async function deployContract(
   );
   await pool.deployed();
 
+  const poolSignerAddress = await pool.signer.getAddress();
+
   await longCfdTOken.transferOwnerShip(pool.address);
   await shortCfdToken.transferOwnerShip(pool.address);
+  await chipToken.transferOwnerShip(poolSignerAddress);
 
   return {
     chipToken,

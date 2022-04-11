@@ -110,9 +110,15 @@ contract Pool {
 
 	function rebalance() public payable {
 		uint256 price = priceOracle.getLatestPrice();
+		uint256 protocolChips = poolState.protocolState.size;
 
 		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
 		poolState = SimpleRebalanceHelper.rebalanceProtocol(price, poolState);
+
+		_mintOrBurn(
+			protocolChips,
+			poolState.protocolState.size
+		);
 
 		poolState.price = price;
 	}
@@ -188,4 +194,16 @@ contract Pool {
 			poolState.protocolState.cfdSize += mintedTokens;
 		}
 	}
+
+	function _mintOrBurn(
+		uint256 protocolBalanceBefore,
+		uint256 protocolBalanceAfter
+	) private {
+		if (protocolBalanceBefore < protocolBalanceAfter) {
+			// TODO: Remove the recompute step.
+			// This should not be a recomputed number since it could results in rounding error.
+			// It should be possible to rearrange some logic to solve this. 
+			chipToken.mint((protocolBalanceAfter - protocolBalanceBefore).normalizeNumber());	
+		}
+	}	
 }
