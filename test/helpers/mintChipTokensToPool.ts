@@ -1,18 +1,16 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { BigNumber, Signer } from 'ethers';
-import { Chip, CoreContract, Pool } from '../../typechain';
+import { Chip, Pool } from '../../typechain';
 import { decodeBoolAbi } from './decodeAbi';
 
 export async function mintTokenToPool({
   chipToken,
-  coreContract,
   pool,
   coreContractSignerAddress,
   receivers: inputReceivers,
 }: {
   chipToken: Chip;
-  coreContract: CoreContract;
   pool: Pool;
   coreContractSignerAddress: string;
   receivers?: Array<{ amount: BigNumber; address: SignerWithAddress | Signer }>;

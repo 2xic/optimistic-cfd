@@ -108,6 +108,27 @@ contract Pool {
 		rebalance();
 	}
 
+	function withdrawal(uint256 amount, SharedStructs.PositionType position)
+		public
+		payable
+	{
+		if (position == SharedStructs.PositionType.SHORT) {
+			require(false, 'Not implemented');
+		} else if (position == SharedStructs.PositionType.LONG) {
+			uint256 chipTokens = poolState.longRedeemPrice * amount;
+			longCfd.burn(amount, msg.sender);
+			chipToken.approve(address(this), chipTokens);
+			chipToken.transferFrom(address(this), msg.sender, chipTokens);
+
+			poolState.longSupply -= amount;
+			poolState.longPoolSize -= chipTokens.increasePrecision();
+
+			rebalance();
+		} else {
+			require(false, 'Unknown state');
+		}
+	}
+
 	function rebalance() public payable {
 		uint256 price = priceOracle.getLatestPrice();
 		uint256 protocolChips = poolState.protocolState.size;
@@ -115,10 +136,7 @@ contract Pool {
 		poolState = SimpleRebalanceHelper.rebalancePools(price, poolState);
 		poolState = SimpleRebalanceHelper.rebalanceProtocol(price, poolState);
 
-		_mintOrBurn(
-			protocolChips,
-			poolState.protocolState.size
-		);
+		_mintOrBurn(protocolChips, poolState.protocolState.size);
 
 		poolState.price = price;
 	}
@@ -176,10 +194,10 @@ contract Pool {
 		);
 
 		if (position == SharedStructs.PositionType.LONG) {
-			poolState.longSupply += longCfd.exchange(mintedTokens, owner);
+			poolState.longSupply += longCfd.mint(mintedTokens, owner);
 			poolState.longPoolSize += deposited;
 		} else if (position == SharedStructs.PositionType.SHORT) {
-			poolState.shortSupply += shortCfd.exchange(mintedTokens, owner);
+			poolState.shortSupply += shortCfd.mint(mintedTokens, owner);
 			poolState.shortPoolSize += deposited;
 		}
 
@@ -202,8 +220,10 @@ contract Pool {
 		if (protocolBalanceBefore < protocolBalanceAfter) {
 			// TODO: Remove the recompute step.
 			// This should not be a recomputed number since it could results in rounding error.
-			// It should be possible to rearrange some logic to solve this. 
-			chipToken.mint((protocolBalanceAfter - protocolBalanceBefore).normalizeNumber());	
+			// It should be possible to rearrange some logic to solve this.
+			chipToken.mint(
+				(protocolBalanceAfter - protocolBalanceBefore).normalizeNumber()
+			);
 		}
-	}	
+	}
 }

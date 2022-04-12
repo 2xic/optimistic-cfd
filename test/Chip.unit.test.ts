@@ -3,7 +3,6 @@ import { expect } from 'chai';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
 import { Chip, MockStableCoin } from '../typechain';
-import { decodeBoolAbi } from './helpers/decodeAbi';
 import { deployContract } from './helpers/deployContract';
 import { getAddressSigner } from './helpers/getAddressSigner';
 

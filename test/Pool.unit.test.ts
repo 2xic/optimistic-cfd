@@ -5,12 +5,19 @@ import { Position } from './types/Position';
 import forEach from 'mocha-each';
 import { mintTokenToPool } from './helpers/mintChipTokensToPool';
 import { getPoolState } from './helpers/getPoolState';
-import { Chip, CoreContract, MockPriceOracle, Pool } from '../typechain';
+import {
+  Chip,
+  CoreContract,
+  EthLongCfd,
+  MockPriceOracle,
+  Pool,
+} from '../typechain';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { BigNumber, Contract } from 'ethers';
 
 describe('Pool', () => {
   let chipToken: Chip;
+  let ethLongCfd: EthLongCfd;
   let randomAddress: SignerWithAddress;
   let coreContract: CoreContract;
   let pool: Pool;
@@ -26,17 +33,17 @@ describe('Pool', () => {
     pool = options.pool;
     priceConsumer = options.priceConsumer;
     treasury = options.treasury;
+    ethLongCfd = options.longCfdTOken;
 
     const coreContractSignerAddress = await getAddressSigner(coreContract);
     await mintTokenToPool({
       chipToken,
-      coreContract,
       pool,
       coreContractSignerAddress,
       receivers: [
         {
           address: randomAddress,
-          amount: BigNumber.from(100),
+          amount: BigNumber.from(50),
         },
       ],
     });
@@ -359,7 +366,37 @@ describe('Pool', () => {
 
   it.skip('should not be possible for users to frontrun oracle updates', () => {});
 
-  it.skip('should correctly calculate how much a user can withdrawal', () => {});
+  it.only('should be possible to withdrawal (exchange $asset-cfd for $c)', async () => {
+    await priceConsumer.connect(coreContract.signer).setPrice(10);
+    await pool.connect(coreContract.signer).init(50, Position.SHORT);
+    await pool.connect(randomAddress).enter(50, Position.LONG);
 
-  it.skip('should be possible to withdrawal directly', () => {});
+    await priceConsumer.connect(coreContract.signer).setPrice(5);
+    await pool.connect(pool.signer).rebalance();
+
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50000);
+    expect(await chipToken.balanceOf(pool.address)).to.eq(150);
+
+    expect(
+      await ethLongCfd.balanceOf(await randomAddress.getAddress())
+    ).to.equal(5);
+    expect(
+      await chipToken.balanceOf(await randomAddress.getAddress())
+    ).to.equal(0);
+    expect((await getPoolState(pool)).protocolState.size).to.eq(50_000);
+
+    await pool.connect(randomAddress).withdrawal(5, Position.LONG);
+
+    expect(
+      await ethLongCfd.balanceOf(await randomAddress.getAddress())
+    ).to.equal(0);
+    expect(
+      await chipToken.balanceOf(await randomAddress.getAddress())
+    ).to.equal(25);
+
+    const poolState = await getPoolState(pool);
+    expect(poolState.protocolState.size).to.eq(75_000);
+    expect(poolState.longPoolSize).to.eq(poolState.shortPoolSize);
+    expect(poolState.longPoolSize).to.eq(75_000);
+  });
 });

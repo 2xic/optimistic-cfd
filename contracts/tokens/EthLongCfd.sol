@@ -11,7 +11,7 @@ contract EthLongCfd is ERC20 {
 		owner = _owner;
 	}
 
-	function exchange(uint256 amount, address receiver)
+	function mint(uint256 amount, address receiver)
 		public
 		payable
 		returns (uint256)
@@ -23,6 +23,10 @@ contract EthLongCfd is ERC20 {
 		_mint(receiver, amount);
 
 		return amount;
+	}
+
+	function burn(uint256 amount, address account) public payable {
+		_burn(account, amount);
 	}
 
 	function transferOwnerShip(address newOwner) public payable returns (bool) {

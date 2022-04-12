@@ -13,11 +13,9 @@ describe('EthShortCfd', () => {
     );
 
     await expect(
-      ethShortCfdToken
-        .connect(randomAddress)
-        .exchange(100, randomAddress.address)
+      ethShortCfdToken.connect(randomAddress).mint(100, randomAddress.address)
     ).to.be.revertedWith('Only the owner contract should call this function');
 
-    await ethShortCfdToken.connect(owner).exchange(100, randomAddress.address);
+    await ethShortCfdToken.connect(owner).mint(100, randomAddress.address);
   });
 });
