@@ -18,7 +18,7 @@ library PoolStateHelper {
 	}
 
 	function isProtocolShort(SharedStructs.PoolState memory poolState)
-		public
+		external
 		pure
 		returns (bool)
 	{
@@ -28,7 +28,7 @@ library PoolStateHelper {
 	}
 
 	function isUnbalanced(SharedStructs.PoolState memory poolState)
-		public
+		external
 		pure
 		returns (bool)
 	{
@@ -36,7 +36,7 @@ library PoolStateHelper {
 	}
 
 	function isProtocolParticipating(SharedStructs.PoolState memory poolState)
-		public
+		external
 		pure
 		returns (bool)
 	{
@@ -47,7 +47,7 @@ library PoolStateHelper {
 		SharedStructs.PoolState memory poolState,
 		SharedStructs.PositionType pool,
 		uint256 size
-	) public pure returns (SharedStructs.PoolState memory) {
+	) external pure returns (SharedStructs.PoolState memory) {
 		poolState.protocolState.position = pool;
 
 		if (pool == SharedStructs.PositionType.LONG) {
@@ -81,24 +81,11 @@ library PoolStateHelper {
 				: poolState.shortRedeemPrice;
 	}
 
-	function cashOutProtocol(SharedStructs.PoolState memory poolState)
-		public
-		pure
-		returns (SharedStructs.PoolState memory)
-	{
-		poolState = downgradeProtocolPosition(
-			poolState,
-			poolState.protocolState.cfdSize,
-			poolState.protocolState.size
-		);
-		return poolState;
-	}
-
 	function downgradeProtocolPosition(
 		SharedStructs.PoolState memory poolState,
 		uint256 cfdAdjustment,
 		uint256 chipAdjustment
-	) public pure returns (SharedStructs.PoolState memory) {
+	) internal pure returns (SharedStructs.PoolState memory) {
 		if (isProtocolLong(poolState)) {
 			poolState.longSupply = poolState.longSupply.downAdjustNumber(
 				cfdAdjustment
@@ -127,10 +114,23 @@ library PoolStateHelper {
 		return poolState;
 	}
 
+	function cashOutProtocol(SharedStructs.PoolState memory poolState)
+		external
+		pure
+		returns (SharedStructs.PoolState memory)
+	{
+		poolState = downgradeProtocolPosition(
+			poolState,
+			poolState.protocolState.cfdSize,
+			poolState.protocolState.size
+		);
+		return poolState;
+	}
+
 	function canProtocolEnterPosition(
 		SharedStructs.PoolState memory poolState,
 		SharedStructs.PositionType position
-	) public pure returns (bool) {
+	) external pure returns (bool) {
 		if (poolState.protocolState.position == position) {
 			return true;
 		} else if (poolState.protocolState.size == 0) {

@@ -4,6 +4,7 @@
     "lint": "npm run lint-ts && npm run lint-sol && npm run lint-security",
     "lint-ts": "npx eslint . --fix --quiet --ext .ts",
     "lint-sol": "solhint --fix 'contracts/**/*.sol'",
+    "lint-security-deep": "slither ./contracts/ --solc-remaps \"@openzeppelin=node_modules/@openzeppelin hardhat=node_modules/hardhat\" --filter-paths \"node_modules\" --exclude solc-version",
     "lint-security": "slither contracts --print human-summary --solc-remaps \"@openzeppelin=node_modules/@openzeppelin hardhat=node_modules/hardhat\""
   },
   "devDependencies": {

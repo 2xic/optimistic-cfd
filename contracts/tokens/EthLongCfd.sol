@@ -12,7 +12,7 @@ contract EthLongCfd is ERC20 {
 	}
 
 	function mint(uint256 amount, address receiver)
-		public
+		external
 		payable
 		returns (uint256)
 	{
@@ -25,14 +25,18 @@ contract EthLongCfd is ERC20 {
 		return amount;
 	}
 
-	function burn(uint256 amount, address account) public payable {
+	function burn(uint256 amount, address account) external payable {
 		_burn(account, amount);
 	}
 
-	function transferOwnerShip(address newOwner) public payable returns (bool) {
+	function transferOwnerShip(address newOwner) external payable returns (bool) {
 		require(
 			msg.sender == owner,
 			'Only the owner contract should call this function'
+		);
+		require(
+			newOwner != address(0),
+			'Cannot use zero address as owner'
 		);
 		owner = newOwner;
 

@@ -50,7 +50,7 @@ contract Pool {
 	}
 
 	function init(uint256 amount, SharedStructs.PositionType userPosition)
-		public
+		external
 		payable
 	{
 		require(!poolState.isInitialized, 'Init should only be called once');
@@ -81,7 +81,7 @@ contract Pool {
 	}
 
 	function enter(uint256 amount, SharedStructs.PositionType userPosition)
-		public
+		external
 		payable
 	{
 		require(poolState.isInitialized, 'call init before enter');
@@ -109,7 +109,7 @@ contract Pool {
 	}
 
 	function withdrawal(uint256 amount, SharedStructs.PositionType position)
-		public
+		external
 		payable
 	{
 		if (position == SharedStructs.PositionType.SHORT) {
@@ -142,7 +142,7 @@ contract Pool {
 	}
 
 	function getUserBalance(SharedStructs.PositionType position)
-		public
+		external
 		view
 		returns (uint256)
 	{
@@ -156,7 +156,7 @@ contract Pool {
 	}
 
 	function getPoolState()
-		public
+		external
 		view
 		returns (SharedStructs.PoolState memory)
 	{

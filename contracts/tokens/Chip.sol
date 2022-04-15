@@ -16,14 +16,14 @@ contract Chip is ERC20 {
 		usdc = ERC20(_usdc);
 	}
 
-	function mint(uint256 amount) public payable returns (uint256) {		
+	function mint(uint256 amount) external payable returns (uint256) {		
 		require(msg.sender == owner, 'Only owner can mint tokens');
 		require(amount > 0, 'Amount not specified');
 		_mint(owner, amount);
 		return amount;
 	}
 
-	function burn(uint256 amount) public payable returns (uint256) {
+	function burn(uint256 amount) external payable returns (uint256) {
 		require(msg.sender == owner, 'Only owner can burn tokens');
 		require(amount > 0, 'Amount not specified');
 		_burn(owner, amount);
@@ -31,7 +31,7 @@ contract Chip is ERC20 {
 	}
 
 	function transferToken(uint256 amount, address target)
-		public
+		external
 		payable
 		returns (uint256)
 	{
@@ -40,14 +40,14 @@ contract Chip is ERC20 {
 		return amount;
 	}
 
-	function transferOwnerShip(address newOwner) public payable returns (bool) {
+	function transferOwnerShip(address newOwner) external payable returns (bool) {
 		require(owner == msg.sender, 'Only owner can change ownership');
 		owner = newOwner;
 
 		return true;
 	}
 
-	function exchange(uint256 amount) public payable {		
+	function exchange(uint256 amount) external payable {		
 		require(usdc.transferFrom(msg.sender, address(this), amount), 'Transfer of usdc failed');
 		_mint(msg.sender, amount);
 	}

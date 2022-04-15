@@ -4,5 +4,9 @@
     "source.fixAll.eslint": true
   },
   "cSpell.enabled": true,
-  "cSpell.words": ["Rebalance", "struct", "Structs"]
+  "cSpell.words": [
+    "Rebalance",
+    "struct",
+    "Structs"
+  ],
 }

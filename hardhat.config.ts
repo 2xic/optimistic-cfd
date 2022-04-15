@@ -10,7 +10,14 @@ import 'solidity-coverage';
 dotenv.config();
 
 const config: HardhatUserConfig = {
-  solidity: '0.8.4',
+  solidity: {
+    compilers: [
+      {
+        version: '0.8.0',
+        settings: {},
+      },
+    ],
+  },
 };
 
 export default config;

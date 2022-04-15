@@ -7,7 +7,7 @@ import {SharedStructs} from '../structs/SharedStructs.sol';
 
 library SharedStructsHelper {
 	function getOppositePosition(SharedStructs.PositionType position)
-		public
+		external
 		pure
 		returns (SharedStructs.PositionType)
 	{
