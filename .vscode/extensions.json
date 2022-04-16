@@ -2,6 +2,7 @@
     "recommendations": [
         "juanblanco.solidity",
         "dbaeumer.vscode-eslint",
-        "streetsidesoftware.code-spell-checker"
+        "streetsidesoftware.code-spell-checker",
+        "eamodio.gitlens"
     ]
 }

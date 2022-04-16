@@ -125,9 +125,9 @@ library SimpleRebalanceHelper {
 
 		if (shouldProtocolCashOut && canCashOut) {
 			if (isProtocolLong) {
-				poolState.cashOutProtocol();
+				poolState = poolState.cashOutProtocol();
 			} else {
-				poolState.cashOutProtocol();
+				poolState = poolState.cashOutProtocol();
 			}
 		}
 
