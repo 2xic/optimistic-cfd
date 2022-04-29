@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "hardhat test",
+    "test": "forge test",
     "lint": "npm run lint-ts && npm run lint-sol && npm run lint-security",
     "lint-ts": "npx eslint . --fix --quiet --ext .ts",
     "lint-sol": "solhint --fix 'contracts/**/*.sol'",
