@@ -11,25 +11,23 @@ contract EthShortCfd is ERC20 {
 		owner = _owner;
 	}
 
-	function mint(uint256 amount, address receiver)
-		public
-		payable
-		returns (uint256)
-	{
+	function mint(uint256 amount, address receiver) public returns (uint256) {
 		require(
 			msg.sender == owner,
 			'Only the owner contract should call this function'
 		);
+		require(amount > 0, 'Amount not specified');
+		require(amount < 2**128, 'Amount overflow');
 		_mint(receiver, amount);
 
 		return amount;
 	}
 
-	function burn(uint256 amount, address account) public payable {
+	function burn(uint256 amount, address account) public {
 		_burn(account, amount);
 	}
 
-	function transferOwnerShip(address newOwner) public payable returns (bool) {
+	function transferOwnerShip(address newOwner) public returns (bool) {
 		require(
 			msg.sender == owner,
 			'Only the owner contract should call this function'
