@@ -31,7 +31,7 @@ library SimpleRebalanceHelper {
 			poolState.longPoolSize += poolAdjustment;
 			poolState.shortPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtocolPosition(
+			poolState = reduceProtocolPosition(
 				poolAdjustment,
 				true,
 				poolState
@@ -51,7 +51,7 @@ library SimpleRebalanceHelper {
 			poolState.shortPoolSize += poolAdjustment;
 			poolState.longPoolSize -= poolAdjustment;
 
-			poolState = _reduceProtocolPosition(
+			poolState = reduceProtocolPosition(
 				poolAdjustment,
 				false,
 				poolState
@@ -82,11 +82,11 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _reduceProtocolPosition(
+	function reduceProtocolPosition(
 		uint256 poolAdjustment,
 		bool isPriceIncrease,
 		SharedStructs.PoolState memory poolState
-	) public pure returns (SharedStructs.PoolState memory) {
+	) private pure returns (SharedStructs.PoolState memory) {
 		bool hasAdjustmentLiquidatedThePool = MathHelper.max(
 			poolState.protocolState.size,
 			poolAdjustment
@@ -119,15 +119,15 @@ library SimpleRebalanceHelper {
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) public pure returns (SharedStructs.PoolState memory) {
-		bool shouldProtocolCashOut = _shouldProtocolCashOut(price, poolState);
+		bool shouldProtocolCashOut = getShouldProtocolCashOut(price, poolState);
 		bool canCashOut = poolState.isProtocolParticipating();
 		bool isProtocolLong = poolState.isProtocolLong();
 
 		if (shouldProtocolCashOut && canCashOut) {
 			if (isProtocolLong) {
-				poolState.cashOutProtocol();
+				poolState = poolState.cashOutProtocol();
 			} else {
-				poolState.cashOutProtocol();
+				poolState = poolState.cashOutProtocol();
 			}
 		}
 
@@ -136,7 +136,7 @@ library SimpleRebalanceHelper {
 		return poolState;
 	}
 
-	function _shouldProtocolCashOut(
+	function getShouldProtocolCashOut(
 		uint256 price,
 		SharedStructs.PoolState memory poolState
 	) private pure returns (bool) {

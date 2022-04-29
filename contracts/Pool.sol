@@ -50,8 +50,7 @@ contract Pool {
 	}
 
 	function init(uint256 amount, SharedStructs.PositionType userPosition)
-		public
-		payable
+		external
 	{
 		require(!poolState.isInitialized, 'Init should only be called once');
 
@@ -81,8 +80,7 @@ contract Pool {
 	}
 
 	function enter(uint256 amount, SharedStructs.PositionType userPosition)
-		public
-		payable
+		external
 	{
 		require(poolState.isInitialized, 'call init before enter');
 
@@ -109,16 +107,21 @@ contract Pool {
 	}
 
 	function withdrawal(uint256 amount, SharedStructs.PositionType position)
-		public
-		payable
+		external
 	{
 		if (position == SharedStructs.PositionType.SHORT) {
 			require(false, 'Not implemented');
 		} else if (position == SharedStructs.PositionType.LONG) {
 			uint256 chipTokens = poolState.longRedeemPrice * amount;
 			longCfd.burn(amount, msg.sender);
-			chipToken.approve(address(this), chipTokens);
-			chipToken.transferFrom(address(this), msg.sender, chipTokens);
+			require(
+				chipToken.approve(address(this), chipTokens),
+				'failed approve'
+			);
+			require(
+				chipToken.transferFrom(address(this), msg.sender, chipTokens),
+				'failed transfer'
+			);
 
 			poolState.longSupply -= amount;
 			poolState.longPoolSize -= chipTokens.increasePrecision();
@@ -129,7 +132,7 @@ contract Pool {
 		}
 	}
 
-	function rebalance() public payable {
+	function rebalance() public {
 		uint256 price = priceOracle.getLatestPrice();
 		uint256 protocolChips = poolState.protocolState.size;
 
@@ -142,7 +145,7 @@ contract Pool {
 	}
 
 	function getUserBalance(SharedStructs.PositionType position)
-		public
+		external
 		view
 		returns (uint256)
 	{
@@ -156,7 +159,7 @@ contract Pool {
 	}
 
 	function getPoolState()
-		public
+		external
 		view
 		returns (SharedStructs.PoolState memory)
 	{

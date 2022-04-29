@@ -8,12 +8,15 @@ contract EthLongCfd is ERC20 {
 	address private owner;
 
 	constructor(address _owner) ERC20('EthLongCfd', 'ETHLCDF') {
+		require(
+			_owner != address(0),
+			'Cannot use zero address as owner'
+		);
 		owner = _owner;
 	}
 
 	function mint(uint256 amount, address receiver)
-		public
-		
+		external
 		returns (uint256)
 	{
 		require(
@@ -27,14 +30,18 @@ contract EthLongCfd is ERC20 {
 		return amount;
 	}
 
-	function burn(uint256 amount, address account) public  {
+	function burn(uint256 amount, address account) external {
 		_burn(account, amount);
 	}
 
-	function transferOwnerShip(address newOwner) public  returns (bool) {
+	function transferOwnerShip(address newOwner) external returns (bool) {
 		require(
 			msg.sender == owner,
 			'Only the owner contract should call this function'
+		);
+		require(
+			newOwner != address(0),
+			'Cannot use zero address as owner'
 		);
 		owner = newOwner;
 

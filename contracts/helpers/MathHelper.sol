@@ -11,7 +11,7 @@ library MathHelper {
 		uint256 a,
 		uint256 b,
 		uint256 c
-	) public pure returns (uint256) {
+	) external pure returns (uint256) {
 		return
 			(a *
 				EXPONENT *
@@ -23,7 +23,7 @@ library MathHelper {
 
 	// TODO: Figure out how many decimals we actually should store
 	// 		 If we want to support many assets, we should probably track 8 decimals	to be on the safe side.
-	function safeDivide(uint256 a, uint256 b) public pure returns (uint256) {
+	function safeDivide(uint256 a, uint256 b) external pure returns (uint256) {
 		require(b > 0, 'Cannot divide by zero');
 
 		uint256 c = (a * EXPONENT) / (b * EXPONENT);
@@ -32,7 +32,7 @@ library MathHelper {
 	}
 
 	function multiplyPercentage(uint256 number, uint256 scaledPercentage)
-		public
+		external
 		pure
 		returns (uint256)
 	{
@@ -40,19 +40,19 @@ library MathHelper {
 			(number * (PERCENTAGE_SCALE + scaledPercentage)) / PERCENTAGE_SCALE;
 	}
 
-	function max(uint256 a, uint256 b) public pure returns (uint256) {
+	function max(uint256 a, uint256 b) external pure returns (uint256) {
 		return a < b ? b : a;
 	}
 
-	function increasePrecision(uint256 number) public pure returns (uint256) {
+	function increasePrecision(uint256 number) external pure returns (uint256) {
 		return number * EXPONENT;
 	}
 
-	function normalizeNumber(uint256 number) public pure returns (uint256) {
+	function normalizeNumber(uint256 number) external pure returns (uint256) {
 		return number / EXPONENT;
 	}
 
-	function downAdjustNumber(uint256 currentValue, uint256 downAdjustment) public pure returns (uint256){
+	function downAdjustNumber(uint256 currentValue, uint256 downAdjustment) external pure returns (uint256){
 		if (currentValue < downAdjustment) {
 			return 0;
 		}
